@@ -141,7 +141,7 @@ void TorrentFile::setFile(const QString &filename)
 
 void TorrentFile::setDirectory(const QString &path)
 {
-    m_rootdir = path.left(path.lastIndexOf('/') +1);
+    m_rootdir = path.left(path.lastIndexOf('/', -2) +1);
     QVariantMap m = m_data.value("info").toMap();
     m.remove("length");
     QDir dir(path);

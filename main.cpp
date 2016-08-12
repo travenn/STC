@@ -7,6 +7,10 @@
 #include <QTextStream>
 #include <QJsonDocument>
 
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
+
 #include "torrentfile.h"
 #include "qmlsettings.h"
 
@@ -44,7 +48,15 @@ int main(int argc, char *argv[])
 
     if (!gui)
     {
+#ifdef Q_OS_WIN
+        FreeConsole();
+        AttachConsole(ATTACH_PARENT_PROCESS);
+        freopen("CON", "w", stdout);
+        freopen("CON", "w", stderr);
+        freopen("CON", "r", stdin);
+#endif
         QCoreApplication app(argc, argv);
+
         QCommandLineParser p;
         p.addHelpOption();
         p.setApplicationDescription("[S]imple [T]orrent [C]reator");
@@ -57,7 +69,7 @@ int main(int argc, char *argv[])
                          {{"d", "data"}, "You can set any additional key value pair. Key and value must be seperated with a '=' e.g.: '-d mykey1=myvalue1 -d mykey2=myvalue2'.", "data"},
                          {{"i", "inspect"}, "Prints content of specified torrent in JSON.", "torrentfile"},
                          {{"n", "name"}, "Sets an alternate name.", "name"},
-                         {{"o", "overwrite"}, "Overwrite existing metainfo file without asking."},
+                         {{"o", "overwrite"}, "Overwrite existing metainfo file without asking. Implicitly set on windows."},
                          {{"p", "private"}, "Sets the torrent private."},
                          {{"s", "l", "size", "length"}, "Piece length in bytes. You can append a 'k' for KiB or 'm' for MiB e.g.: '64k' for '65536'. Any value < 16k will be interpreted as a maximum piece number for autogeneration. E.g.: '-l 3500' would choose a piece length that results in less than 3501 pieces. Exception: Autogeneration won't create a length > 16MiB to ensure client compatibility.", "size"},
                          {{"t", "simulate"}, "Doesn't hash or create a metafile. Can be used to calculate the piece length, number of pieces and the metainfo size before creating."},
@@ -65,7 +77,9 @@ int main(int argc, char *argv[])
                          {{"w", "webseed"}, "Webseed url. Can be used multiple times.", "webseedurl"},
                      });
         p.process(app);
+
         QTextStream out(stdout);
+        out <<endl;
 
         if (p.isSet("inspect"))
         {
@@ -130,6 +144,7 @@ int main(int argc, char *argv[])
             return 0;
 
 
+#ifndef WIN32
         if (QFile::exists(target) && !p.isSet("overwrite"))
         {
             QTextStream in(stdin);
@@ -139,6 +154,7 @@ int main(int argc, char *argv[])
             if (QString::compare(c, "y", Qt::CaseInsensitive))
                 return 0;
         }
+#endif
 
 
         qint64 starttime = QDateTime::currentMSecsSinceEpoch();

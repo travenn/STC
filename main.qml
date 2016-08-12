@@ -13,6 +13,7 @@ Rectangle {
     property string lastsavepath;
     property int automaxpiecenumber;
     property bool announcemultitier;
+    property bool busy: false;
 
 
     function fileSizeIEC(a,b,c,d,e){
@@ -54,6 +55,7 @@ Rectangle {
             findiag.text = success ? "Creation complete." : "Something went wrong.";
             findiag.open();
             etatimer.stop();
+            busy = false;
         }
     }
 
@@ -108,6 +110,7 @@ Rectangle {
         height: 50;
 
         Button {
+            enabled: !busy;
             text: "  From File";
             implicitHeight: 40;
             implicitWidth: parent.width /4;
@@ -129,6 +132,7 @@ Rectangle {
         }
 
         Button {
+            enabled: !busy;
             text: "  From Directory";
             implicitHeight: 40;
             implicitWidth: parent.width /4;
@@ -151,6 +155,7 @@ Rectangle {
         }
 
         Button {
+            enabled: !busy;
             text: "  Load .torrent";
             implicitHeight: 40;
             implicitWidth: parent.width /4;
@@ -324,6 +329,7 @@ Rectangle {
                 etatimer.start();
                 findiag.title = "Operation finished";
                 lastsavepath = savepathedit.text.replace(/[^\/]*$/, "");
+                busy = true;
             }
             else {
                 findiag.title = "Error";
