@@ -204,7 +204,7 @@ private:
     TorrentFileHasher* m_hasher = 0;
 
     QVariant decodeBencode(const QByteArray& bencode, DATATYPE keytype = ADDITIONAL, qint64 *parsedLength = 0);
-    QByteArray encode(const QVariant& data);
+    QByteArray encode(const QVariant& data, const bool createinfohash = false);
 
 signals:
     //! Emitted on progress updates after create() was invoked.

@@ -389,7 +389,7 @@ QVariant TorrentFile::decodeBencode(const QByteArray& bencode, DATATYPE keytype,
     return ret;
 }
 
-QByteArray TorrentFile::encode(const QVariant &data)
+QByteArray TorrentFile::encode(const QVariant &data, const bool createinfohash)
 {
     switch (data.type())
     {
@@ -404,8 +404,8 @@ QByteArray TorrentFile::encode(const QVariant &data)
             QByteArray ret = "d";
             for (auto i = data.toMap().constBegin(); i != data.toMap().constEnd(); ++i)
             {
-                QByteArray val = encode(i.value());
-                if (i.key() == "info")
+                QByteArray val = encode(i.value(), createinfohash);
+                if (i.key() == "info" && createinfohash)
                     m_infohash = QCryptographicHash::hash(val, QCryptographicHash::Sha1);
                 ret += encode(i.key()) + val;
             }
@@ -453,7 +453,7 @@ void TorrentFile::onThreadFinished(QByteArray pieces)
     QFile f(m_savetorrentfilename);
     if (f.open(QIODevice::ReadWrite | QIODevice::Truncate))
     {
-        f.write(encode(m_data));
+        f.write(encode(m_data, 1));
         f.close();
         emit finished(true);
     }

@@ -80,13 +80,14 @@ int main(int argc, char *argv[])
         p.process(app);
 
         QTextStream out(stdout);
-        out <<endl;
+        out << endl;
 
         bool verbose = p.isSet("verbose");
 
         if (p.isSet("inspect"))
         {
-            QVariantMap m = TorrentFile(p.value("inspect")).toVariant().toMap();
+            t.load(p.value("inspect"));
+            QVariantMap m = t.toVariant().toMap();
             QVariantMap info = m.value("info").toMap();
             info.insert("pieces", "<stripped>");
             m.insert("info", info);
@@ -99,7 +100,7 @@ int main(int argc, char *argv[])
                 out << "Piece length: " << prettySize(t.getPieceSize()) << endl;
                 out << "Number of pieces: " << t.getPieceNumber() << endl;
                 out << "Metainfo size: " << prettySize(t.calculateTorrentfileSize()) << endl;
-                out << "Info hash: " << t.getInfoHash(true);
+                out << "Info hash: " << t.getInfoHash(true) << endl;
             }
             return 0;
         }
