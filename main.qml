@@ -52,7 +52,7 @@ Rectangle {
             progressbar.value = percentage;
         }
         onFinished: {
-            findiag.text = success ? "Creation complete." : "Something went wrong.";
+            findiag.text = success ? "Creation complete.\nInfo hash: " + torrent.getInfoHash(true) : "Something went wrong.";
             findiag.open();
             etatimer.stop();
             busy = false;
@@ -177,7 +177,19 @@ Rectangle {
                     privatecheck.checked = torrent.isPrivate();
                 }
             }
-            onClicked: fdloadtor.open();
+            FileDialog {
+                id: fdrootdir;
+                title: "Choose the directory where the file or directory is in";
+                selectFolder: true;
+                onAccepted: {
+                    torrent.setRootDirectory(fileUrl.toString().substring(7));
+                }
+            }
+
+            onClicked: {
+                fdrootdir.open();
+                fdloadtor.open();
+            }
         }
 
 
@@ -312,6 +324,7 @@ Rectangle {
 
     Button {
         id: createbutton;
+        enabled: !busy;
         anchors {bottom: footer.top; horizontalCenter: parent.horizontalCenter; margins: 10;}
         text: "Create";
         height: 35;

@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
     if (argc < 3)
     {
         gui = true;
-        QStringList l = QStringList() << "-h" << "--help" << "-i" << "--inspect";
+        QStringList l = QStringList() << "-h" << "--help" << "-i" << "--inspect" << "--hashcompare";
         for (int i = 0; i < argc; ++i)
             if (l.contains(argv[i]))
                 gui = false;
@@ -67,13 +67,14 @@ int main(int argc, char *argv[])
                          {{"a", "announce"}, "Announce url. Can be used multiple times.", "announce"},
                          {{"c", "comment"}, "Torrent comment", "comment"},
                          {{"d", "data"}, "You can set any additional key value pair. Key and value must be seperated with a '=' e.g.: '-d mykey1=myvalue1 -d mykey2=myvalue2'.", "data"},
+                         {"hashcompare", "Usage: \"stc --hashcompare <torrentfile1> <torrentfile2> [<torrentfileX>]...\".\nIf used without -v just prints 0(false) or 1(true). The return code will also reflect this."},
                          {{"i", "inspect"}, "Prints content of specified torrent in JSON.", "torrentfile"},
                          {{"n", "name"}, "Sets an alternate name.", "name"},
                          {{"o", "overwrite"}, "Overwrite existing metainfo file without asking. Implicitly set on windows."},
                          {{"p", "private"}, "Sets the torrent private."},
                          {{"s", "l", "size", "length"}, "Piece length in bytes. You can append a 'k' for KiB or 'm' for MiB e.g.: '64k' for '65536'. Any value < 16k will be interpreted as a maximum piece number for autogeneration. E.g.: '-l 3500' would choose a piece length that results in less than 3501 pieces. Exception: Autogeneration won't create a length > 16MiB to ensure client compatibility.", "size"},
                          {{"t", "simulate"}, "Doesn't hash or create a metafile. Can be used to calculate the piece length, number of pieces and the metainfo size before creating."},
-                         {{"v", "verbose"}, "Prints JSON representation."},
+                         {{"v", "verbose"}, "Prints JSON representation. Especially useful when inspecting."},
                          {{"w", "webseed"}, "Webseed url. Can be used multiple times.", "webseedurl"},
                      });
         p.process(app);
@@ -81,14 +82,54 @@ int main(int argc, char *argv[])
         QTextStream out(stdout);
         out <<endl;
 
+        bool verbose = p.isSet("verbose");
+
         if (p.isSet("inspect"))
         {
             QVariantMap m = TorrentFile(p.value("inspect")).toVariant().toMap();
             QVariantMap info = m.value("info").toMap();
             info.insert("pieces", "<stripped>");
             m.insert("info", info);
-            out << QJsonDocument::fromVariant(m).toJson() << endl;
+
+            if (verbose)
+                out << QJsonDocument::fromVariant(m).toJson() << endl;
+            else
+            {
+                out << "Total size: " << prettySize(t.getContentLength()) << endl;
+                out << "Piece length: " << prettySize(t.getPieceSize()) << endl;
+                out << "Number of pieces: " << t.getPieceNumber() << endl;
+                out << "Metainfo size: " << prettySize(t.calculateTorrentfileSize()) << endl;
+                out << "Info hash: " << t.getInfoHash(true);
+            }
             return 0;
+        }
+
+        if (p.isSet("hashcompare"))
+        {
+            QStringList positionals = p.positionalArguments();
+            if (positionals.size() < 2)
+                p.showHelp(0);
+
+            QSet<QByteArray> hashes;
+            for (auto i = positionals.constBegin(); i != positionals.constEnd(); ++i)
+            {
+                TorrentFile tf((*i));
+                hashes << tf.getInfoHash();
+                if (verbose)
+                    out << (*i) << ": " << tf.getInfoHash(true) << endl;
+            }
+            if (hashes.size() != 1)
+            {
+                if (verbose) out << "Hashes don't match." << endl;
+                else out << "0" << endl;
+                return 0;
+            }
+            else
+            {
+                if (verbose) out << "Hashes are the same." << endl;
+                else out << "1" << endl;
+                return !verbose;
+            }
         }
 
         QStringList positionals = p.positionalArguments();
@@ -132,7 +173,7 @@ int main(int argc, char *argv[])
             t.setAutomaticPieceSize(t.getContentLength());
         t.setWebseedUrls(p.values("webseed"));
 
-        if (p.isSet("verbose"))
+        if (verbose)
             out << QJsonDocument::fromVariant(t.toVariant()).toJson() << endl;
 
         out << "Total size: " << prettySize(t.getContentLength()) << endl;
@@ -173,6 +214,8 @@ int main(int argc, char *argv[])
             out << endl;
             if (!s)
                 out << "Something went wrong, operation failed!" << endl;
+            else
+                out << "Finished: Info hash: " << t.getInfoHash(true) << endl;
             app.quit();
         });
 

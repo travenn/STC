@@ -173,7 +173,7 @@ public:
     Q_INVOKABLE qint64 getPieceSize() const {return m_data.value("info").toMap().value("piece length", 0).toLongLong();}
     Q_INVOKABLE bool isPrivate() const {return m_data.value("info").toMap().value("private", false).toBool();}
     //! The hash of the info dictionary also known as Torrent Hash. @warning Keep in mind only the fields actually parsed will be used to create the hash. @sa DATATYPE
-    Q_INVOKABLE QByteArray getInfoHash() const {return m_infohash;}
+    Q_INVOKABLE QByteArray getInfoHash(bool hex = false) const {return hex ? m_infohash.toHex() : m_infohash;}
     //! Returns any additional data. @sa load() @note The structure remains the same, it's basically just stripped of any standard keys. @return QVariant() when there is no additional data.
     QVariant getAdditionalData() const;
 
