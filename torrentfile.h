@@ -170,7 +170,7 @@ public:
     QString getCreatedBy() const {return m_data.value("created by").toString();}
     QString getEncoding() const {return m_data.value("encoding").toString();}
     QByteArray getPieces() const {return m_data.value("info").toMap().value("pieces").toByteArray();}
-    Q_INVOKABLE qint64 getPieceSize() const {return m_data.value("info").toMap().value("piece length", 0).toLongLong();}
+    Q_INVOKABLE qint64 getPieceLength() const {return m_data.value("info").toMap().value("piece length", 0).toLongLong();}
     Q_INVOKABLE bool isPrivate() const {return m_data.value("info").toMap().value("private", false).toBool();}
     //! The hash of the info dictionary also known as Torrent Hash. @warning Keep in mind only the fields actually parsed will be used to create the hash. @sa DATATYPE
     Q_INVOKABLE QByteArray getInfoHash(bool hex = false) const {return hex ? m_infohash.toHex() : m_infohash;}
@@ -189,7 +189,7 @@ public:
     Q_INVOKABLE void setComment(const QString& comment) {if (comment.isEmpty()) m_data.remove("comment"); else m_data.insert("comment", comment);}
     Q_INVOKABLE void setCreatedBy(const QString& creator) {if (creator.isEmpty()) m_data.remove("created by"); else m_data.insert("created by", creator);}
     //! Must be a power of 2. When 0(default) it will be automatically calculated when creating a torrent.
-    Q_INVOKABLE void setPieceSize(const qint64& bytes);
+    Q_INVOKABLE void setPieceLength(const qint64& bytes);
     Q_INVOKABLE void setPrivate(const bool& is_private);
     //! Adds additional data to the torrent file.
     Q_INVOKABLE void addAdditionalData(const QString& key, const QVariant& value) {if (!standardkeys.contains(key)) m_data.insert(key, value);}

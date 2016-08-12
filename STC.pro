@@ -10,3 +10,6 @@ RESOURCES += qml.qrc
 HEADERS += \
     torrentfile.h \
     qmlsettings.h
+
+
+win32: RC_ICONS = images/file.ico

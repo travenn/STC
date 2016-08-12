@@ -23,7 +23,7 @@ Rectangle {
 
     function updateUI() {
         var contentlength = torrent.getContentLength();
-        footertext0.text = "Pieces: #: " + torrent.getPieceNumber() + " S: " + fileSizeIEC(torrent.getPieceSize());
+        footertext0.text = "Pieces: #: " + torrent.getPieceNumber() + " S: " + fileSizeIEC(torrent.getPieceLength());
         footertext1.text = "Total size: " + fileSizeIEC(contentlength);
         footertext2.text = "Metainfo size: " + fileSizeIEC(torrent.calculateTorrentfileSize());
     }
@@ -115,7 +115,7 @@ Rectangle {
             implicitHeight: 40;
             implicitWidth: parent.width /4;
             Layout.alignment: Qt.AlignCenter;
-            iconSource: "qrc:/images/file.png";
+            iconSource: "qrc:/images/file.ico";
             FileDialog {
                 id: fdfile;
                 title: "Choose a file";
@@ -167,7 +167,7 @@ Rectangle {
                 nameFilters: ["Torrent file (*.torrent)"];
                 onAccepted: {
                     torrent.load(fileUrl.toString().substring(7));
-                    piecelengthcombo.currentIndex = piecelengthcombo.find(fileSizeIEC(torrent.getPieceSize()));
+                    piecelengthcombo.currentIndex = piecelengthcombo.find(fileSizeIEC(torrent.getPieceLength()));
                     namefield.text = torrent.getName();
                     announce.text = torrent.getAnnounceUrls().join('\n');
                     if (torrent.getWebseedUrls().join('\n').length > 1)
@@ -271,7 +271,7 @@ Rectangle {
                 if (currentIndex === 0)
                     torrent.setAutomaticPieceSize(torrent.getContentLength(), automaxpiecenumber);
                 else
-                    torrent.setPieceSize(textAt(currentIndex).substring(textAt(currentIndex).length -3) === "KiB" ? parseInt(textAt(currentIndex)) * 1024 : parseInt(textAt(currentIndex)) * 1024 * 1024);
+                    torrent.setPieceLength(textAt(currentIndex).substring(textAt(currentIndex).length -3) === "KiB" ? parseInt(textAt(currentIndex)) * 1024 : parseInt(textAt(currentIndex)) * 1024 * 1024);
                 root.updateUI();
             }
         }

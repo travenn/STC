@@ -86,12 +86,12 @@ bool TorrentFile::create(const QString &filename)
         }
     }
 
-    if (!getPieceSize())
+    if (!getPieceLength())
         setAutomaticPieceSize(getContentLength());
 
     m_savetorrentfilename = filename;
 
-    m_hasher = new TorrentFileHasher(filelist, getPieceSize(), getContentLength());
+    m_hasher = new TorrentFileHasher(filelist, getPieceLength(), getContentLength());
     m_hashthread = new QThread(this);
     m_hasher->moveToThread(m_hashthread);
     connect(m_hasher, &TorrentFileHasher::progressUpdate, this, &TorrentFile::progress, Qt::QueuedConnection);
@@ -105,7 +105,7 @@ bool TorrentFile::create(const QString &filename)
 
 qint64 TorrentFile::calculateTorrentfileSize()
 {
-    if (!getPieceSize())
+    if (!getPieceLength())
         setAutomaticPieceSize(getContentLength());
 
     QVariantMap map = m_data;
@@ -120,9 +120,9 @@ qint64 TorrentFile::calculateTorrentfileSize()
 
 qint64 TorrentFile::getPieceNumber()
 {
-    if (!getContentLength() || !getPieceSize())
+    if (!getContentLength() || !getPieceLength())
         return 0;
-    return getContentLength() % getPieceSize() ? getContentLength() / getPieceSize() +1 : getContentLength() / getPieceSize();
+    return getContentLength() % getPieceLength() ? getContentLength() / getPieceLength() +1 : getContentLength() / getPieceLength();
 }
 
 void TorrentFile::setFile(const QString &filename)
@@ -287,7 +287,7 @@ void TorrentFile::setWebseedUrls(const QStringList &list)
     }
 }
 
-void TorrentFile::setPieceSize(const qint64 &bytes)
+void TorrentFile::setPieceLength(const qint64 &bytes)
 {
     QVariantMap m = m_data.value("info").toMap();
     m.insert("piece length", bytes);

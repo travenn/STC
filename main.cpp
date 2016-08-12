@@ -15,6 +15,16 @@
 #include "qmlsettings.h"
 
 
+QTextStream out(stdout);
+int quit(const int exitcode = 0)
+{
+    out << endl;
+#ifdef Q_OS_WIN
+    out << QDir::toNativeSeparators(QDir::currentPath()) + ">" << flush;
+#endif
+    exit(exitcode);
+}
+
 QString prettySize(const qint64& bytes)
 {
     double res = bytes;
@@ -74,12 +84,10 @@ int main(int argc, char *argv[])
                          {{"p", "private"}, "Sets the torrent private."},
                          {{"s", "l", "size", "length"}, "Piece length in bytes. You can append a 'k' for KiB or 'm' for MiB e.g.: '64k' for '65536'. Any value < 16k will be interpreted as a maximum piece number for autogeneration. E.g.: '-l 3500' would choose a piece length that results in less than 3501 pieces. Exception: Autogeneration won't create a length > 16MiB to ensure client compatibility.", "size"},
                          {{"t", "simulate"}, "Doesn't hash or create a metafile. Can be used to calculate the piece length, number of pieces and the metainfo size before creating."},
-                         {{"v", "verbose"}, "Prints JSON representation. Especially useful when inspecting."},
+                         {{"v", "verbose"}, "Prints additional information dependent on the other options used."},
                          {{"w", "webseed"}, "Webseed url. Can be used multiple times.", "webseedurl"},
                      });
         p.process(app);
-
-        QTextStream out(stdout);
         out << endl;
 
         bool verbose = p.isSet("verbose");
@@ -87,22 +95,24 @@ int main(int argc, char *argv[])
         if (p.isSet("inspect"))
         {
             t.load(p.value("inspect"));
-            QVariantMap m = t.toVariant().toMap();
-            QVariantMap info = m.value("info").toMap();
-            info.insert("pieces", "<stripped>");
-            m.insert("info", info);
 
             if (verbose)
+            {
+                QVariantMap m = t.toVariant().toMap();
+                QVariantMap info = m.value("info").toMap();
+                info.insert("pieces", "<stripped>");
+                m.insert("info", info);
                 out << QJsonDocument::fromVariant(m).toJson() << endl;
+            }
             else
             {
                 out << "Total size: " << prettySize(t.getContentLength()) << endl;
-                out << "Piece length: " << prettySize(t.getPieceSize()) << endl;
+                out << "Piece length: " << prettySize(t.getPieceLength()) << endl;
                 out << "Number of pieces: " << t.getPieceNumber() << endl;
                 out << "Metainfo size: " << prettySize(t.calculateTorrentfileSize()) << endl;
                 out << "Info hash: " << t.getInfoHash(true) << endl;
             }
-            return 0;
+            quit(0);
         }
 
         if (p.isSet("hashcompare"))
@@ -123,13 +133,13 @@ int main(int argc, char *argv[])
             {
                 if (verbose) out << "Hashes don't match." << endl;
                 else out << "0" << endl;
-                return 0;
+                quit();
             }
             else
             {
                 if (verbose) out << "Hashes are the same." << endl;
                 else out << "1" << endl;
-                return !verbose;
+                quit(!verbose);
             }
         }
 
@@ -168,7 +178,7 @@ int main(int argc, char *argv[])
             else if (length < 16 * 1024)
                 t.setAutomaticPieceSize(t.getContentLength(), length);
             else
-                t.setPieceSize(length);
+                t.setPieceLength(length);
         }
         else
             t.setAutomaticPieceSize(t.getContentLength());
@@ -178,12 +188,12 @@ int main(int argc, char *argv[])
             out << QJsonDocument::fromVariant(t.toVariant()).toJson() << endl;
 
         out << "Total size: " << prettySize(t.getContentLength()) << endl;
-        out << "Piece length: " << prettySize(t.getPieceSize()) << endl;
+        out << "Piece length: " << prettySize(t.getPieceLength()) << endl;
         out << "Number of pieces: " << t.getPieceNumber() << endl;
         out << "Metainfo size: " << prettySize(t.calculateTorrentfileSize()) << endl;
 
         if (p.isSet("simulate"))
-            return 0;
+            quit();
 
 
 #ifndef WIN32
@@ -194,7 +204,7 @@ int main(int argc, char *argv[])
             QString c;
             in >> c;
             if (QString::compare(c, "y", Qt::CaseInsensitive))
-                return 0;
+                quit();
         }
 #endif
 
@@ -214,18 +224,20 @@ int main(int argc, char *argv[])
         {
             out << endl;
             if (!s)
-                out << "Something went wrong, operation failed!" << endl;
+                out << endl << "Something went wrong, operation failed!" << endl;
             else
-                out << "Finished: Info hash: " << t.getInfoHash(true) << endl;
+                out << endl << "Finished: Info hash: " << t.getInfoHash(true) << endl;
             app.quit();
         });
 
         if (!t.create(target))
         {
-            out << "Files not found." << endl;
-            return 1;
+            out << endl << "Files not found." << endl;
+            quit();
         }
-        return app.exec();
+        else
+            out << "0% ETA: -" << flush;
+        quit(app.exec());
     }
 
     else
@@ -234,7 +246,7 @@ int main(int argc, char *argv[])
 
         QmlSettings s;
         QQuickWidget w;
-        w.setWindowIcon(QIcon(QPixmap(":/images/dir.png")));
+        w.setWindowIcon(QIcon(":/images/file.ico"));
         w.engine()->rootContext()->setContextProperty("torrent", &t);
         w.engine()->rootContext()->setContextProperty("sets", &s);
         w.setResizeMode(QQuickWidget::SizeRootObjectToView);
