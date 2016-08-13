@@ -412,6 +412,15 @@ QByteArray TorrentFile::encode(const QVariant &data, const bool createinfohash)
             ret += "e";
             return ret;
         }
+        case QMetaType::QStringList:
+        {
+            QStringList l = data.toStringList();
+            QByteArray ret = "l";
+            for (auto i = l.constBegin(); i != l.constEnd(); ++i)
+                ret += encode(*i);
+            ret += "e";
+            return ret;
+        }
         case QMetaType::QVariantList:
         {
             QByteArray ret = "l";

@@ -16,7 +16,7 @@
 
 
 QTextStream out(stdout);
-int quit(const int exitcode = 0)
+void quit(const int exitcode = 0)
 {
     out << endl;
 #ifdef Q_OS_WIN
@@ -88,32 +88,7 @@ int main(int argc, char *argv[])
                          {{"w", "webseed"}, "Webseed url. Can be used multiple times.", "webseedurl"},
                      });
         p.process(app);
-        out << endl;
-
         bool verbose = p.isSet("verbose");
-
-        if (p.isSet("inspect"))
-        {
-            t.load(p.value("inspect"));
-
-            if (verbose)
-            {
-                QVariantMap m = t.toVariant().toMap();
-                QVariantMap info = m.value("info").toMap();
-                info.insert("pieces", "<stripped>");
-                m.insert("info", info);
-                out << QJsonDocument::fromVariant(m).toJson() << endl;
-            }
-            else
-            {
-                out << "Total size: " << prettySize(t.getContentLength()) << endl;
-                out << "Piece length: " << prettySize(t.getPieceLength()) << endl;
-                out << "Number of pieces: " << t.getPieceNumber() << endl;
-                out << "Metainfo size: " << prettySize(t.calculateTorrentfileSize()) << endl;
-                out << "Info hash: " << t.getInfoHash(true) << endl;
-            }
-            quit(0);
-        }
 
         if (p.isSet("hashcompare"))
         {
@@ -132,15 +107,51 @@ int main(int argc, char *argv[])
             if (hashes.size() != 1)
             {
                 if (verbose) out << "Hashes don't match." << endl;
-                else out << "0" << endl;
+                else out << "0";
                 quit();
             }
             else
             {
                 if (verbose) out << "Hashes are the same." << endl;
-                else out << "1" << endl;
+                else out << "1";
                 quit(!verbose);
             }
+        }
+
+        out << endl;
+        if (p.isSet("inspect"))
+        {
+            t.load(p.value("inspect"));
+
+            if (verbose)
+            {
+                QVariantMap m = t.toVariant().toMap();
+                QVariantMap info = m.value("info").toMap();
+                info.insert("pieces", "<stripped>");
+                m.insert("info", info);
+                out << QJsonDocument::fromVariant(m).toJson() << endl;
+            }
+            else
+            {
+                out << "Name: " << t.getName() << endl;
+                out << "Announce urls: " << t.getAnnounceUrls().join(", ") << endl;
+                if (!t.getWebseedUrls().isEmpty())
+                    out << "Webseed urls: " << t.getWebseedUrls().join(", ") << endl;
+                if (!t.getCreatedBy().isEmpty())
+                    out << "Created by: " << t.getCreatedBy() << endl;
+                if (t.getCreationDate())
+                    out << "Creation date: " << QDateTime::fromTime_t(t.getCreationDate(), Qt::UTC).toString(Qt::ISODate) << endl;
+                if (!t.getComment().isEmpty())
+                    out << "Comment: " << t.getComment() << endl;
+                if (t.isPrivate())
+                    out << "Private: true" << endl;
+                out << "Total size: " << prettySize(t.getContentLength()) << endl;
+                out << "Piece length: " << prettySize(t.getPieceLength()) << endl;
+                out << "Number of pieces: " << t.getPieceNumber() << endl;
+                out << "Metainfo size: " << prettySize(t.calculateTorrentfileSize()) << endl;
+                out << "Info hash: " << t.getInfoHash(true) << endl;
+            }
+            quit();
         }
 
         QStringList positionals = p.positionalArguments();
@@ -196,7 +207,7 @@ int main(int argc, char *argv[])
             quit();
 
 
-#ifndef WIN32
+#ifndef Q_OS_WIN
         if (QFile::exists(target) && !p.isSet("overwrite"))
         {
             QTextStream in(stdin);

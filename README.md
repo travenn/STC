@@ -15,8 +15,6 @@ coded with Qt 5.7 on linux but should work on all platforms.
   
   
   
-#### Known issues
-Windows doesn't support running GUI tools solely on the command line so i had to do some hacks.
   
   
 #### How you can help

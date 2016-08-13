@@ -326,7 +326,7 @@ Rectangle {
         id: createbutton;
         enabled: !busy;
         anchors {bottom: footer.top; horizontalCenter: parent.horizontalCenter; margins: 10;}
-        text: "Create";
+        text: "  Create";
         height: 35;
         width: parent.width /2;
         iconSource: "qrc:/images/create.png";

@@ -13,7 +13,6 @@
 #include <QMutex>
 
 
-
 class HashTask : public QRunnable
 {
 public:
@@ -164,7 +163,7 @@ public:
     Q_INVOKABLE QString getName() const {return m_data.value("info").toMap().value("name").toString();}
     Q_INVOKABLE QStringList getAnnounceUrls() const;
     Q_INVOKABLE QStringList getWebseedUrls() const {return m_data.value("url-list").toStringList();}
-    Q_INVOKABLE qint64 getCreationDate() const {return m_data.value("creation data", 0).toLongLong();}
+    Q_INVOKABLE qint64 getCreationDate() const {return m_data.value("creation date", 0).toLongLong();}
     Q_INVOKABLE qint64 getContentLength() const;
     Q_INVOKABLE QString getComment() const {return m_data.value("comment").toString();}
     QString getCreatedBy() const {return m_data.value("created by").toString();}
