@@ -2,6 +2,7 @@
 [S]imple [T]orrent [C]reator  
 
 coded with Qt 5.7 on linux but should work on all platforms.  
+Binaries can be found [here](https://github.com/travenn/STC/releases).
   
   
 ### Special Features
