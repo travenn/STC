@@ -5,12 +5,14 @@
 #include <QSettings>
 #include <QApplication>
 
+//! Just a wrapper for QSettings and helper
 class QmlSettings : public QSettings
 {
     Q_OBJECT
 public:
     QmlSettings(QObject* parent = 0) : QSettings(QApplication::applicationDirPath() + "/STC.ini", QSettings::IniFormat, parent) {}
 
+    //! Removes duplicates and empty strings.
     Q_INVOKABLE QString removeDupes(const QString& s)
     {
         QStringList l = s.split('\n');

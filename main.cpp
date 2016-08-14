@@ -40,11 +40,6 @@ QString prettySize(const qint64& bytes)
 
 int main(int argc, char *argv[])
 {
-
-    TorrentFile t;
-    t.setCreationDate(QDateTime::currentMSecsSinceEpoch() / 1000);
-    t.setCreatedBy("https://github.com/travenn/stc");
-
     bool gui = false;
     if (argc < 3)
     {
@@ -66,6 +61,9 @@ int main(int argc, char *argv[])
         freopen("CON", "r", stdin);
 #endif
         QCoreApplication app(argc, argv);
+        TorrentFile t;
+        t.setCreationDate(QDateTime::currentMSecsSinceEpoch() / 1000);
+        t.setCreatedBy("https://github.com/travenn/stc");
 
         QCommandLineParser p;
         p.addHelpOption();
@@ -74,15 +72,15 @@ int main(int argc, char *argv[])
         p.addPositionalArgument("source", "The path to a file or directory you want to create a torrent from.");
         p.addPositionalArgument("target", "The path where to save the metainfo (.torrent) file.");
         p.addOptions({
-                         {{"a", "announce"}, "Announce url. Can be used multiple times.", "announce"},
-                         {{"c", "comment"}, "Torrent comment", "comment"},
+                         {{"a", "announce"}, "Adds a announce url. Can be used multiple times.", "announce"},
+                         {{"c", "comment"}, "Sets the torrents comment to <comment>", "comment"},
                          {{"d", "data"}, "You can set any additional key value pair. Key and value must be seperated with a '=' e.g.: '-d mykey1=myvalue1 -d mykey2=myvalue2'.", "data"},
-                         {"hashcompare", "Usage: \"stc --hashcompare <torrentfile1> <torrentfile2> [<torrentfileX>]...\".\nIf used without -v just prints 0(false) or 1(true). The return code will also reflect this."},
-                         {{"i", "inspect"}, "Prints content of specified torrent in JSON.", "torrentfile"},
+                         {"hashcompare", "Usage: \"stc --hashcompare <torrentfile1> <torrentfile2> [<torrentfileX>]...\".\nIf used without -v just prints 0(not the same) or 1(equal). The return code will also reflect this."},
+                         {{"i", "inspect"}, "Prints information about the torrentfile. If -v is set outputs JSON representation.", "torrentfile"},
                          {{"n", "name"}, "Sets an alternate name.", "name"},
                          {{"o", "overwrite"}, "Overwrite existing metainfo file without asking. Implicitly set on windows."},
                          {{"p", "private"}, "Sets the torrent private."},
-                         {{"s", "l", "size", "length"}, "Piece length in bytes. You can append a 'k' for KiB or 'm' for MiB e.g.: '64k' for '65536'. Any value < 16k will be interpreted as a maximum piece number for autogeneration. E.g.: '-l 3500' would choose a piece length that results in less than 3501 pieces. Exception: Autogeneration won't create a length > 16MiB to ensure client compatibility.", "size"},
+                         {{"s", "l", "size", "length"}, "Piece length in bytes. You can append a 'k' for KiB or 'm' for MiB e.g.: '-l512k' for 524288 bytes.", "size"},
                          {{"t", "simulate"}, "Doesn't hash or create a metafile. Can be used to calculate the piece length, number of pieces and the metainfo size before creating."},
                          {{"v", "verbose"}, "Prints additional information dependent on the other options used."},
                          {{"w", "webseed"}, "Webseed url. Can be used multiple times.", "webseedurl"},
@@ -185,14 +183,12 @@ int main(int argc, char *argv[])
             if (plength.endsWith('m', Qt::CaseInsensitive))
                 length = plength.left(plength.length() -1).toLongLong() * 1024 * 1024;
             if (!length)
-                t.setAutomaticPieceSize(t.getContentLength());
-            else if (length < 16 * 1024)
-                t.setAutomaticPieceSize(t.getContentLength(), length);
+                t.setAutomaticPieceLength();
             else
                 t.setPieceLength(length);
         }
         else
-            t.setAutomaticPieceSize(t.getContentLength());
+            t.setAutomaticPieceLength();
         t.setWebseedUrls(p.values("webseed"));
 
         if (verbose)
@@ -240,6 +236,11 @@ int main(int argc, char *argv[])
                 out << endl << "Finished: Info hash: " << t.getInfoHash(true) << endl;
             app.quit();
         });
+        QObject::connect(&t, &TorrentFile::error, [&] (QString msg)
+        {
+            out << endl << msg;
+            app.quit();
+        });
 
         if (!t.create(target))
         {
@@ -254,7 +255,9 @@ int main(int argc, char *argv[])
     else
     {
         QApplication app(argc, argv);
-
+        TorrentFile t;
+        t.setCreationDate(QDateTime::currentMSecsSinceEpoch() / 1000);
+        t.setCreatedBy("https://github.com/travenn/stc");
         QmlSettings s;
         QQuickWidget w;
         w.setWindowIcon(QIcon(":/images/file.ico"));
@@ -263,6 +266,7 @@ int main(int argc, char *argv[])
         w.setResizeMode(QQuickWidget::SizeRootObjectToView);
         w.setSource(QUrl("qrc:/main.qml"));
         w.show();
+
         return app.exec();
     }
 }

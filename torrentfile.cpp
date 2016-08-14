@@ -20,6 +20,7 @@ QHash<QString, TorrentFile::DATATYPE> TorrentFile::standardkeys{
 TorrentFile::TorrentFile(QObject *parent) : QObject(parent)
 {
     m_data = QVariantMap{{"info", QVariantMap()}};
+    connect(&m_watcher, &QFileSystemWatcher::directoryChanged, this, &TorrentFile::onWatchedDirChanged);
 }
 
 TorrentFile::TorrentFile(const QVariant &data, QObject *parent) : QObject(parent)
@@ -40,10 +41,14 @@ TorrentFile::~TorrentFile()
         m_hashthread->quit();
         m_hashthread->wait();
     }
+    if (!m_watcher.directories().isEmpty())
+        m_watcher.removePaths(m_watcher.directories());
 }
 
 bool TorrentFile::load(const QString &filename, DATATYPE keytype)
 {
+    resetFiles();
+
     QFile f(filename);
     if (f.open(QIODevice::ReadOnly))
     {
@@ -60,42 +65,17 @@ bool TorrentFile::create(const QString &filename)
     if (m_hashthread)
         return false;
 
-    //validate
-    QVariantMap info = m_data.value("info").toMap();
-    QStringList filelist;
-    if (m_data.value("announce").isNull() || info.value("name").isNull())
-        return false;
-    if (info.contains("length"))
-    {
-        filelist << m_rootdir + m_realname;
-        if (!QFile::exists(filelist.last()))
-            return false;
-    }
-    else
-    {
-        QVariantList files = info.value("files").toList();
-        if (files.isEmpty())
-            return false;
-        QString name = m_realname;
-        if (!name.endsWith('/')) name += "/";
-        for (auto i = files.constBegin(); i != files.constEnd(); ++i)
-        {
-            filelist << m_rootdir + name + (*i).toMap().value("path").toStringList().join('/');
-            if (!QFile::exists(filelist.last()))
-                return false;
-        }
-    }
-
     if (!getPieceLength())
-        setAutomaticPieceSize(getContentLength());
+        setAutomaticPieceLength();
 
     m_savetorrentfilename = filename;
 
-    m_hasher = new TorrentFileHasher(filelist, getPieceLength(), getContentLength());
+    m_hasher = new TorrentFileHasher(m_filelist, getPieceLength(), getContentLength());
     m_hashthread = new QThread(this);
     m_hasher->moveToThread(m_hashthread);
     connect(m_hasher, &TorrentFileHasher::progressUpdate, this, &TorrentFile::progress, Qt::QueuedConnection);
     connect(m_hasher, &TorrentFileHasher::done, this, &TorrentFile::onThreadFinished, Qt::QueuedConnection);
+    connect(m_hasher, &TorrentFileHasher::error, this, &TorrentFile::error);
     connect(m_hashthread, &QThread::started, m_hasher, &TorrentFileHasher::hash, Qt::QueuedConnection);
     connect(m_hashthread, &QThread::finished, m_hasher, &TorrentFileHasher::deleteLater, Qt::QueuedConnection);
     m_hashthread->start();
@@ -106,7 +86,7 @@ bool TorrentFile::create(const QString &filename)
 qint64 TorrentFile::calculateTorrentfileSize()
 {
     if (!getPieceLength())
-        setAutomaticPieceSize(getContentLength());
+        setAutomaticPieceLength();
 
     QVariantMap map = m_data;
     QVariantMap m = map.value("info").toMap();
@@ -127,21 +107,26 @@ qint64 TorrentFile::getPieceNumber()
 
 void TorrentFile::setFile(const QString &filename)
 {
+    resetFiles();
+
     QVariantMap m = m_data.value("info").toMap();
     m.remove("files");
     QFileInfo f(filename);
+    m_filelist.insert(filename, f.size());
     m.insert("name", f.fileName());
     m_realname = f.fileName();
     m.insert("length", f.size());
     m_data.insert("info", m);
-    m_rootdir = f.absolutePath();
-    if (!m_rootdir.endsWith('/'))
-        m_rootdir += "/";
+    m_parentdir = f.absolutePath();
+    if (!m_parentdir.endsWith('/'))
+        m_parentdir += "/";
 }
 
 void TorrentFile::setDirectory(const QString &path)
 {
-    m_rootdir = path.left(path.lastIndexOf('/', -2) +1);
+    resetFiles();
+    m_parentdir = path.left(path.lastIndexOf('/', -2) +1);
+
     QVariantMap m = m_data.value("info").toMap();
     m.remove("length");
     QDir dir(path);
@@ -149,14 +134,60 @@ void TorrentFile::setDirectory(const QString &path)
     m.insert("name", dir.dirName());
     m_realname = dir.dirName();
     QVariantList files;
+
     QDirIterator it(dir, QDirIterator::Subdirectories);
     while (it.hasNext())
     {
         it.next();
-        files.append(QVariantMap{{"length", it.fileInfo().size()}, {"path", dir.relativeFilePath(it.filePath()).split('/')}});
+        qint64 length = it.fileInfo().size();
+        QString name = it.filePath();
+        m_filelist.insert(name, length);
+        files.append(QVariantMap{{"length", length}, {"path", dir.relativeFilePath(name).split('/')}});
     }
     m.insert("files", files);
     m_data.insert("info", m);
+
+    QStringList watchdirs(path);
+    QDirIterator dirsit(path, QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
+    while(dirsit.hasNext())
+    {
+        dirsit.next();
+        watchdirs << dirsit.filePath();
+    }
+    m_watcher.addPaths(watchdirs);
+}
+
+void TorrentFile::setRootDirectory(const QString &path)
+{
+    m_parentdir = path;
+    if (!m_parentdir.endsWith('/'))
+        m_parentdir += "/";
+    resetFiles();
+
+    QVariantList files = m_data.value("info").toMap().value("files").toList();
+    if (files.isEmpty())
+        m_filelist.insert(m_parentdir + m_data.value("info").toMap().value("name").toString(), m_data.value("info").toMap().value("length", 0).toLongLong());
+    else
+    {
+        QString root = m_parentdir + m_data.value("info").toMap().value("name").toString() + "/";
+        for (auto i = files.constBegin(); i != files.constEnd(); ++i)
+        {
+            QVariantMap m = (*i).toMap();
+            QString path = root + m.value("path").toStringList().join("/");
+            qint64 length = m.value("length").toLongLong();
+            m_filelist.insert(path, length);
+        }
+
+        QStringList watchdirs(root);
+        QDirIterator dirsit(root, QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
+        while(dirsit.hasNext())
+        {
+            dirsit.next();
+            watchdirs << dirsit.filePath();
+        }
+        m_watcher.addPaths(watchdirs);
+    }
+
 }
 
 void TorrentFile::abortHashing()
@@ -182,16 +213,20 @@ QStringList TorrentFile::getAnnounceUrls() const
 
 qint64 TorrentFile::getContentLength() const
 {
-    QVariantList files = m_data.value("info").toMap().value("files").toList();
-    if (files.isEmpty())
-        return m_data.value("info").toMap().value("length", 0).toLongLong();
-    else
+    qint64 ret = 0;
+    if (m_filelist.isEmpty())
     {
-        qint64 length = 0;
-        for (auto i = files.constBegin(); i != files.constEnd(); ++i)
-            length += (*i).toMap().value("length", 0).toLongLong();
-        return length;
+        QVariantList files = m_data.value("info").toMap().value("files").toList();
+        if (files.isEmpty())
+            ret = m_data.value("info").toMap().value("length", 0).toLongLong();
+        else
+            for (auto i = files.constBegin(); i != files.constEnd(); ++i)
+                ret += (*i).toMap().value("length", 0).toLongLong();
     }
+    else
+        for (auto i = m_filelist.constBegin(); i != m_filelist.constEnd(); ++i)
+            ret += i.value();
+    return ret;
 }
 
 QVariant TorrentFile::getAdditionalData() const
@@ -407,7 +442,7 @@ QByteArray TorrentFile::encode(const QVariant &data, const bool createinfohash)
                 QByteArray val = encode(i.value(), createinfohash);
                 if (i.key() == "info" && createinfohash)
                     m_infohash = QCryptographicHash::hash(val, QCryptographicHash::Sha1);
-                ret += encode(i.key()) + val;
+                ret += encode(i.key(), createinfohash) + val;
             }
             ret += "e";
             return ret;
@@ -417,7 +452,7 @@ QByteArray TorrentFile::encode(const QVariant &data, const bool createinfohash)
             QStringList l = data.toStringList();
             QByteArray ret = "l";
             for (auto i = l.constBegin(); i != l.constEnd(); ++i)
-                ret += encode(*i);
+                ret += encode(*i, createinfohash);
             ret += "e";
             return ret;
         }
@@ -425,21 +460,49 @@ QByteArray TorrentFile::encode(const QVariant &data, const bool createinfohash)
         {
             QByteArray ret = "l";
             for (auto i = data.toList().constBegin(); i != data.toList().constEnd(); ++i)
-                ret += encode(*i);
+                ret += encode(*i, createinfohash);
             ret += "e";
             return ret;
         }
     }
 }
 
-qint64 TorrentFile::setAutomaticPieceSize(const qint64 &contentsize, int maxpiecenumber, qint64 maxpiecesize)
+void TorrentFile::resetFiles()
 {
+    m_filelist.clear();
+    if (!m_watcher.directories().isEmpty())
+        m_watcher.removePaths(m_watcher.directories());
+}
+
+void TorrentFile::onWatchedDirChanged(const QString &dir)
+{
+    if (m_hashthread)
+    {
+        abortHashing();
+        emit error("Added / removed files in " + dir + ". Operation aborted!");
+    }
+    else
+        emit watchedDirChanged(dir);
+}
+
+qint64 TorrentFile::setAutomaticPieceLength()
+{
+    qint64 contentsize = getContentLength();
     qint64 piecesize = 16*1024;
-    qint64 piecenum = contentsize / piecesize;
-    while (piecenum > maxpiecenumber && piecesize < maxpiecesize)
+    qint64 piecenum = (contentsize / piecesize) +1;
+    qint64 maxpsize = 16 *1024 *1024;
+    int maxpiecenmb = 2000;
+    while (piecesize < maxpsize && piecenum > maxpiecenmb)
     {
         piecesize *= 2;
-        piecenum = contentsize / piecesize;
+        piecenum = (contentsize / piecesize) +1;
+        switch (piecesize)
+        {
+            case 256 * 1024: maxpiecenmb = 5000; break;
+            case 1 *1024 *1024: maxpiecenmb = 10000; break;
+            case 4 *1024 *1024: maxpiecenmb = 15000; break;
+            case 8 *1024 *1024: maxpiecenmb = 20000; break;
+        }
     }
     QVariantMap m = m_data.value("info").toMap();
     m.insert("piece length", piecesize);
@@ -459,6 +522,8 @@ void TorrentFile::onThreadFinished(QByteArray pieces)
     QVariantMap m = m_data.value("info").toMap();
     m.insert("pieces", pieces);
     m_data.insert("info", m);
+    if (m_savetorrentfilename.isEmpty())
+        emit finished(true);
     QFile f(m_savetorrentfilename);
     if (f.open(QIODevice::ReadWrite | QIODevice::Truncate))
     {

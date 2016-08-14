@@ -11,7 +11,6 @@ Rectangle {
     property string announceurls;
     property string webseedurls;
     property string lastsavepath;
-    property int automaxpiecenumber;
     property bool announcemultitier;
     property bool busy: false;
 
@@ -45,6 +44,15 @@ Rectangle {
         title: "Operation finished";
     }
 
+    MessageDialog {
+        id: reloaddiag;
+        modality: Qt.ApplicationModal;
+        title: "Oops";
+        text: "Files in the directory you have chosen where added or removed. Do you want to reload the fileslist?";
+        standardButtons: StandardButton.Yes | StandardButton.No;
+        onYes: torrent.setDirectory(torrent.getParentDirectory + "/" + torrent.getRealName());
+    }
+
     Connections {
         target: torrent;
         onProgress: {
@@ -52,10 +60,17 @@ Rectangle {
             progressbar.value = percentage;
         }
         onFinished: {
+            findiag.title = success ? "Operation finished" : "Error";
             findiag.text = success ? "Creation complete.\nInfo hash: " + torrent.getInfoHash(true) : "Something went wrong.";
             findiag.open();
             etatimer.stop();
             busy = false;
+        }
+        onWatchedDirChanged: {if (!reloaddiag.visible) reloaddiag.open();}
+        onError: {
+            findiag.title = "Error";
+            findiag.text = msg;
+            findiag.open();
         }
     }
 
@@ -78,7 +93,7 @@ Rectangle {
             texts.comment = "Pretty obvious, isn't it?";
             texts.additional = "Here you can set any data you want inside your metainfo file.\nData has to be a key value pair seperated by '='.\nIf you want to add multiple pairs seperate them with a new line.\n\nExample:\nkey1=value1\nkey2=value2";
             texts.private = "Sets this torrent to be private.\nThis means (as long as the client honors it) no DHT or PeX will be used to spread the torrent.";
-            texts.piecelength = "Smaller piece lengths will make it easier to spread the torrent but increase the size of the .torrent file.\nIf you are unsure what to use just leave it to be \"Automatic\".\n16MiB is the highest supported by all torrent clients, higher values might not be supported by some clients.\n\nIf you feel the need to change the automatic calculating you can add\nAutomaxpiecenumber=<number>\nto the config file.\nThis will be honored as long as the piece length is <= 16MiB";
+            texts.piecelength = "Smaller piece lengths will make it easier to spread the torrent but increase the size of the .torrent file.\nIf you are unsure what to use just leave it to be \"Automatic\".\n16MiB is the highest supported by all torrent clients, higher values might not be supported by some clients.";
             texts.savepath = "Filename for the output metafile.";
         }
 
@@ -207,11 +222,12 @@ Rectangle {
             onTextChanged: torrent.setName(text);
         }
 
-        Text {text: "Announce:"; MouseArea {anchors.fill: parent; cursorShape: Qt.WhatsThisCursor; onClicked: help.show(help.texts.announce);}}
+        Text {text: "Announce url(s):"; MouseArea {anchors.fill: parent; cursorShape: Qt.WhatsThisCursor; onClicked: help.show(help.texts.announce);}}
         TextArea {
             id: announce;
             Layout.preferredHeight: 40;
             Layout.fillWidth: true;
+            Layout.fillHeight: true;
             onTextChanged: {torrent.setAnnounceUrls(sets.removeDupes(text).split('\n'), announcemultitier); root.updateUI();}
 
             ComboBox {
@@ -223,7 +239,7 @@ Rectangle {
             }
         }
 
-        Text {text: "Webseed:"; MouseArea {anchors.fill: parent; cursorShape: Qt.WhatsThisCursor; onClicked: help.show(help.texts.webseed);}}
+        Text {text: "Webseed url(s):"; MouseArea {anchors.fill: parent; cursorShape: Qt.WhatsThisCursor; onClicked: help.show(help.texts.webseed);}}
         TextArea {
             id: webseed;
             Layout.preferredHeight: 40;
@@ -269,7 +285,7 @@ Rectangle {
             onCurrentIndexChanged: {
                 if (currentIndex === -1) return;
                 if (currentIndex === 0)
-                    torrent.setAutomaticPieceSize(torrent.getContentLength(), automaxpiecenumber);
+                    torrent.setAutomaticPieceLength();
                 else
                     torrent.setPieceLength(textAt(currentIndex).substring(textAt(currentIndex).length -3) === "KiB" ? parseInt(textAt(currentIndex)) * 1024 : parseInt(textAt(currentIndex)) * 1024 * 1024);
                 root.updateUI();
@@ -340,7 +356,6 @@ Rectangle {
             {
                 etatimer.elapsed = 0;
                 etatimer.start();
-                findiag.title = "Operation finished";
                 lastsavepath = savepathedit.text.replace(/[^\/]*$/, "");
                 busy = true;
             }
@@ -403,7 +418,6 @@ Rectangle {
         webseedurls = sets.value("STC/Webseeds", "");
         privatecheck.checked = sets.value("STC/Private", false);
         lastsavepath = sets.value("STC/Lastsavepath", "");
-        automaxpiecenumber = sets.value("STC/Automaxpiecenumber", 5000);
         announcemultitier = sets.value("STC/Announcemultitier", true);
     }
 
