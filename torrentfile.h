@@ -12,6 +12,7 @@
 #include <QThreadPool>
 #include <QMutex>
 #include <QFileSystemWatcher>
+#include <QDateTime>
 
 
 //! QRunnable reimplementation to create SHA1 hashes.
@@ -182,6 +183,9 @@ public:
     //! Aborts a running hash thread if there is any.
     Q_INVOKABLE void abortHashing();
 
+    //! Creates bencoding of the given data. @param createinfohash true creates and sets the info hash.
+    QByteArray encode(const QVariant& data, const bool createinfohash = false);
+
 
     Q_INVOKABLE QString getName() const {return m_data.value("info").toMap().value("name").toString();}
     Q_INVOKABLE QStringList getAnnounceUrls() const;
@@ -219,6 +223,9 @@ public:
     Q_INVOKABLE void addAdditionalData(const QString& key, const QVariant& value) {if (!standardkeys.contains(key)) m_data.insert(key, value);}
     //! Sets the piece length to the smallest size that doesn't exceed maxpiecenumber or maxpiecesize. @returns piece length.
     Q_INVOKABLE qint64 setAutomaticPieceLength();
+    //! Adds current secs since epoch to the info section to alter info hash.
+    void dupe();
+
 
 private:
     QVariantMap m_data;
@@ -231,7 +238,6 @@ private:
 
 
     QVariant decodeBencode(const QByteArray& bencode, DATATYPE keytype = ADDITIONAL, qint64 *parsedLength = 0);
-    QByteArray encode(const QVariant& data, const bool createinfohash = false);
     void resetFiles();
 
 signals:

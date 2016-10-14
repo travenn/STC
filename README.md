@@ -11,6 +11,7 @@ Binaries can be found [here](https://github.com/travenn/STC/releases).
 * Optionally set any arbitrary data you want to support client extensions (or just cause you can).
 * Gives you the metainfo size before hashing (never fear limits for .torrent file size on trackers).
 * Can read torrent files, either to alter them or just to see what's in it.
+* Duplicate a torrent with altering it's hash (to avoid "illegal cross-seeding" on multiple private trackers).
 * Scripting compatible hash comparison to check for duplicates.
 * Can be used as GUI or commandline tool.
   

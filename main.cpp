@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
     if (argc < 3)
     {
         gui = true;
-        QStringList l = QStringList() << "-h" << "--help" << "-i" << "--inspect" << "--hashcompare";
+        QStringList l = QStringList() << "-h" << "--help" << "-i" << "--inspect" << "--dupe" << "--hashcompare";
         for (int i = 0; i < argc; ++i)
             if (l.contains(argv[i]))
                 gui = false;
@@ -75,6 +75,7 @@ int main(int argc, char *argv[])
                          {{"a", "announce"}, "Adds a announce url. Can be used multiple times.", "announce"},
                          {{"c", "comment"}, "Sets the torrents comment to <comment>", "comment"},
                          {{"d", "data"}, "You can set any additional key value pair. Key and value must be seperated with a '=' e.g.: '-d mykey1=myvalue1 -d mykey2=myvalue2'.", "data"},
+                         {"dupe", "Usage: \"stc --dupe <original.torrent> <announce> <new.torrent>\".Creates a duplicate of the original having a different torrent hash without rehashing the files.\nThis can be used to seed the same data to multiple private trackers.\nAltering the hash avoids \"illegal cross-seeding\".\nYou can also change everything not file related (urls, private etc.)."},
                          {"hashcompare", "Usage: \"stc --hashcompare <torrentfile1> <torrentfile2> [<torrentfileX>]...\".\nIf used without -v just prints 0(not the same) or 1(equal). The return code will also reflect this."},
                          {{"i", "inspect"}, "Prints information about the torrentfile. If -v is set outputs JSON representation.", "torrentfile"},
                          {{"n", "name"}, "Sets an alternate name.", "name"},
@@ -115,8 +116,72 @@ int main(int argc, char *argv[])
                 quit(!verbose);
             }
         }
-
         out << endl;
+
+
+        if (p.isSet("dupe"))
+        {
+            QStringList positionals = p.positionalArguments();
+            if (positionals.size() != 3)
+                p.showHelp(0);
+
+            QString source = positionals.at(0);
+            QString announce = positionals.at(1);
+            QString target = positionals.at(2);
+
+            if (!t.load(source, TorrentFile::ADDITIONAL))
+            {
+                out << "Can't find " << source << endl;
+                quit(1);
+            }
+            QByteArray ohash = t.getInfoHash();
+            if (verbose)
+            {
+                QVariantMap m = t.toVariant().toMap();
+                QVariantMap info = m.value("info").toMap();
+                info.insert("pieces", "<stripped>");
+                m.insert("info", info);
+                out << QJsonDocument::fromVariant(m).toJson() << endl;
+            }
+            out << "Original hash: " << ohash.toHex() << endl;
+
+            t.setAnnounceUrls(QStringList() << announce << p.values("announce"));
+            if (p.isSet("webseed"))
+                t.setWebseedUrls(p.values("webseed") << t.getWebseedUrls());
+            if (p.isSet("private"))
+                t.setPrivate(!t.isPrivate());
+            t.setCreationDate(QDateTime::currentMSecsSinceEpoch() / 1000);
+            t.setCreatedBy("https://github.com/travenn/stc");
+            QByteArray bcode;
+            while (ohash == t.getInfoHash())
+            {
+                t.dupe();
+                bcode = t.encode(t.toVariant().toMap(), true);
+            }
+            out << "Duplicate hash: " << t.getInfoHash(true) << endl;
+
+#ifndef Q_OS_WIN
+            if (QFile::exists(target) && !p.isSet("overwrite"))
+            {
+                QTextStream in(stdin);
+                out << target << " already exists, overwrite? [Y]es / [N]o" << endl;
+                QString c;
+                in >> c;
+                if (QString::compare(c, "y", Qt::CaseInsensitive))
+                    quit();
+            }
+#endif
+            QFile f(target);
+            if (!f.open(QIODevice::ReadWrite | QIODevice::Truncate) || f.write(bcode) == -1)
+            {
+                out << "Can't write file: " << target << endl;
+                quit(1);
+            }
+            f.close();
+            quit();
+
+        }
+
         if (p.isSet("inspect"))
         {
             t.load(p.value("inspect"));
@@ -165,7 +230,7 @@ int main(int argc, char *argv[])
         else
             t.setFile(source);
 
-        t.setAnnounceUrls(p.values("announce") << announce);
+        t.setAnnounceUrls(QStringList() << announce << p.values("announce"));
         t.setComment(p.value("comment"));
         QStringList additional = p.values("data");
         for (auto i = additional.constBegin(); i != additional.constEnd(); ++i)

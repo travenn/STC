@@ -204,10 +204,14 @@ void TorrentFile::abortHashing()
 
 QStringList TorrentFile::getAnnounceUrls() const
 {
-    QStringList l = m_data.value("announce-list").toStringList();
+    QVariantList vl = m_data.value("announce-list").toList();
+    QStringList l;
     QString a = m_data.value("announce").toString();
     if (!a.isEmpty())
-        l.prepend(a);
+        l << a;
+    for (auto i = vl.constBegin(); i != vl.constEnd(); ++i)
+        l << (*i).toStringList();
+    l.removeDuplicates();
     return l;
 }
 
@@ -508,6 +512,13 @@ qint64 TorrentFile::setAutomaticPieceLength()
     m.insert("piece length", piecesize);
     m_data.insert("info", m);
     return piecesize;
+}
+
+void TorrentFile::dupe()
+{
+    QVariantMap m = m_data.value("info").toMap();
+    m.insert("duped", QDateTime::currentMSecsSinceEpoch() / 1000);
+    m_data.insert("info", m);
 }
 
 void TorrentFile::onThreadFinished(QByteArray pieces)

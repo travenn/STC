@@ -71,6 +71,7 @@ Rectangle {
             findiag.title = "Error";
             findiag.text = msg;
             findiag.open();
+            busy = false;
         }
     }
 
