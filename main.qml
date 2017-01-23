@@ -136,7 +136,7 @@ Rectangle {
                 id: fdfile;
                 title: "Choose a file";
                 onAccepted: {
-                    torrent.setFile(fileUrl.toString().substring(7));
+                    torrent.setFile(sets.urlToLocalFile(fileUrl));
                     namefield.text = torrent.getName();
                     piecelengthcombo.currentIndex = -1;
                     piecelengthcombo.currentIndex = 0;
@@ -159,7 +159,7 @@ Rectangle {
                 title: "Choose a directory";
                 selectFolder: true;
                 onAccepted: {
-                    torrent.setDirectory(fileUrl.toString().substring(7));
+                    torrent.setDirectory(sets.urlToLocalFile(fileUrl));
                     namefield.text = torrent.getName();
                     piecelengthcombo.currentIndex = -1;
                     piecelengthcombo.currentIndex = 0;
@@ -182,7 +182,7 @@ Rectangle {
                 title: "Choose a file";
                 nameFilters: ["Torrent file (*.torrent)"];
                 onAccepted: {
-                    torrent.load(fileUrl.toString().substring(7));
+                    torrent.load(sets.urlToLocalFile(fileUrl));
                     piecelengthcombo.currentIndex = piecelengthcombo.find(fileSizeIEC(torrent.getPieceLength()));
                     namefield.text = torrent.getName();
                     announce.text = torrent.getAnnounceUrls().join('\n');
@@ -198,7 +198,7 @@ Rectangle {
                 title: "Choose the directory where the file or directory is in";
                 selectFolder: true;
                 onAccepted: {
-                    torrent.setRootDirectory(fileUrl.toString().substring(7));
+                    torrent.setRootDirectory(sets.urlToLocalFile(fileUrl));
                 }
             }
 
@@ -321,7 +321,7 @@ Rectangle {
                     selectExisting: false;
                     nameFilters: ["Torrent file (*.torrent)"];
                     onAccepted: {
-                        var path = fileUrl.toString().substring(7);
+                        var path = sets.toNativeSeparators(sets.urlToLocalFile(fileUrl));
                         if (path.substring(path.length - 8) !== ".torrent")
                             path += ".torrent";
                         savepathedit.text = path;
@@ -352,12 +352,11 @@ Rectangle {
             webseedurls = sets.removeDupes(webseedurls +"\n"+ webseed.text);
             torrent.setCreatedBy("https://github.com/travenn/stc");
             torrent.setCreationDate(new Date().getTime() / 1000);
-            torrent.toVariant();
-            if (savepathedit.text && torrent.create(savepathedit.text))
+            if (savepathedit.text.substring(savepathedit.text.length -8) === ".torrent" && torrent.create(savepathedit.text))
             {
                 etatimer.elapsed = 0;
                 etatimer.start();
-                lastsavepath = savepathedit.text.replace(/[^\/]*$/, "");
+                lastsavepath = sets.toNativeSeparators(sets.getFolderPath(savepathedit.text));
                 busy = true;
             }
             else {

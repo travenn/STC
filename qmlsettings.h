@@ -4,6 +4,8 @@
 #include <QObject>
 #include <QSettings>
 #include <QApplication>
+#include <QUrl>
+#include <QDir>
 
 //! Just a wrapper for QSettings and helper
 class QmlSettings : public QSettings
@@ -22,6 +24,9 @@ public:
     }
     Q_INVOKABLE void setValue(const QString &key, const QVariant &value) {QSettings::setValue(key, value);}
     Q_INVOKABLE QVariant value(const QString &key, const QVariant &defaultValue = QVariant()) const {return QSettings::value(key, defaultValue);}
+    Q_INVOKABLE QString urlToLocalFile(const QUrl& url) const {return url.toLocalFile();}
+    Q_INVOKABLE QString toNativeSeparators(const QString& path) const {return QDir::toNativeSeparators(path);}
+    Q_INVOKABLE QString getFolderPath(const QString& path) const {return QFileInfo(path).absolutePath() + QDir::separator();}
 };
 
 #endif // QMLSETTINGS_H
