@@ -27,6 +27,7 @@ public:
     Q_INVOKABLE QString urlToLocalFile(const QUrl& url) const {return url.toLocalFile();}
     Q_INVOKABLE QString toNativeSeparators(const QString& path) const {return QDir::toNativeSeparators(path);}
     Q_INVOKABLE QString getFolderPath(const QString& path) const {return QFileInfo(path).absolutePath() + QDir::separator();}
+    Q_INVOKABLE bool dirExists(const QString& path) const {return QDir(path).exists();}
 };
 
 #endif // QMLSETTINGS_H

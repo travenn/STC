@@ -14,6 +14,7 @@ Binaries can be found [here](https://github.com/travenn/STC/releases).
 * Duplicate a torrent with altering it's hash (to avoid "illegal cross-seeding" on multiple private trackers).
 * Scripting compatible hash comparison to check for duplicates.
 * Can be used as GUI or commandline tool.
+* About as fast as mktorrent (2x-3x faster than some torrent clients)
   
   
   

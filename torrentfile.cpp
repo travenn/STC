@@ -43,6 +43,8 @@ TorrentFile::~TorrentFile()
     }
     if (!m_watcher.directories().isEmpty())
         m_watcher.removePaths(m_watcher.directories());
+    if (m_outputfile.isOpen())
+        m_outputfile.close();
 }
 
 bool TorrentFile::load(const QString &filename, DATATYPE keytype)
@@ -68,7 +70,9 @@ bool TorrentFile::create(const QString &filename)
     if (!getPieceLength())
         setAutomaticPieceLength();
 
-    m_savetorrentfilename = filename;
+    m_outputfile.setFileName(filename);
+    if (!m_outputfile.open(QIODevice::WriteOnly) || !m_outputfile.resize(calculateTorrentfileSize()))
+        return false;
 
     m_hasher = new TorrentFileHasher(m_filelist, getPieceLength(), getContentLength());
     m_hashthread = new QThread(this);
@@ -95,7 +99,7 @@ qint64 TorrentFile::calculateTorrentfileSize()
 
     QByteArray encoded = encode(map);
     qint64 pbytes = getPieceNumber() * 20;
-    return encoded.size() + 8 /*6:pieces*/ + QByteArray::number(pbytes).size() +1 /*<bytenumber>:*/ + pbytes ;
+    return encoded.size() + 8 /*6:pieces*/ + QByteArray::number(pbytes).size() +1 /*<bytenumber>:*/ + pbytes;
 }
 
 qint64 TorrentFile::getPieceNumber()
@@ -200,6 +204,8 @@ void TorrentFile::abortHashing()
         m_hashthread->deleteLater();
         m_hashthread = 0;
     }
+    m_outputfile.close();
+    m_outputfile.remove();
 }
 
 QStringList TorrentFile::getAnnounceUrls() const
@@ -517,7 +523,7 @@ qint64 TorrentFile::setAutomaticPieceLength()
 void TorrentFile::dupe()
 {
     QVariantMap m = m_data.value("info").toMap();
-    m.insert("duped", QDateTime::currentMSecsSinceEpoch() / 1000);
+    m.insert("stcduped", QDateTime::currentMSecsSinceEpoch() / 1000);
     m_data.insert("info", m);
 }
 
@@ -533,17 +539,29 @@ void TorrentFile::onThreadFinished(QByteArray pieces)
     QVariantMap m = m_data.value("info").toMap();
     m.insert("pieces", pieces);
     m_data.insert("info", m);
-    if (m_savetorrentfilename.isEmpty())
-        emit finished(true);
-    QFile f(m_savetorrentfilename);
-    if (f.open(QIODevice::ReadWrite | QIODevice::Truncate))
+
+    if (m_outputfile.write(encode(m_data, 1)) == -1)
     {
-        f.write(encode(m_data, 1));
-        f.close();
-        emit finished(true);
+        emit error("Could not write to file: " + m_outputfile.fileName());
+        emit finished(false);
     }
     else
-        emit finished(false);
+    {
+        m_outputfile.close();
+        emit finished(true);
+    }
+}
+
+void TorrentFile::onHashError(QString msg)
+{
+    if (m_outputfile.isOpen())
+        m_outputfile.close();
+    m_outputfile.remove();
+    m_hashthread->quit();
+    m_hashthread->wait(5000);
+    m_hashthread->deleteLater();
+    m_hashthread = 0;
+    emit error(msg);
 }
 
 

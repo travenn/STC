@@ -14,6 +14,8 @@
 #include "torrentfile.h"
 #include "qmlsettings.h"
 
+#define APPNAME "Simple Torrent Creator"
+#define VERSION "0.0.8"
 
 QTextStream out(stdout);
 void quit(const int exitcode = 0)
@@ -63,7 +65,7 @@ int main(int argc, char *argv[])
         QCoreApplication app(argc, argv);
         TorrentFile t;
         t.setCreationDate(QDateTime::currentMSecsSinceEpoch() / 1000);
-        t.setCreatedBy("https://github.com/travenn/stc");
+        t.setCreatedBy(QString("%1 %2").arg(APPNAME, VERSION));
 
         QCommandLineParser p;
         p.addHelpOption();
@@ -151,7 +153,7 @@ int main(int argc, char *argv[])
             if (p.isSet("private"))
                 t.setPrivate(!t.isPrivate());
             t.setCreationDate(QDateTime::currentMSecsSinceEpoch() / 1000);
-            t.setCreatedBy("https://github.com/travenn/stc");
+            t.setCreatedBy(QString("%1 %2").arg(APPNAME, VERSION));
             QByteArray bcode;
             while (ohash == t.getInfoHash())
             {
@@ -320,9 +322,11 @@ int main(int argc, char *argv[])
     else
     {
         QApplication app(argc, argv);
+        app.setApplicationName(APPNAME);
+        app.setApplicationVersion(VERSION);
         TorrentFile t;
         t.setCreationDate(QDateTime::currentMSecsSinceEpoch() / 1000);
-        t.setCreatedBy("https://github.com/travenn/stc");
+        t.setCreatedBy(QString("%1 %2").arg(APPNAME, VERSION));
         QmlSettings s;
         QQuickWidget w;
         w.setWindowIcon(QIcon(":/images/file.ico"));

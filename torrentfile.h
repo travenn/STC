@@ -113,6 +113,8 @@ public slots:
         }
 
         m_pool.waitForDone();
+        if (f.isOpen())
+            f.close();
 
         if (!m_stop)
         {
@@ -129,7 +131,6 @@ public slots:
         }
         else
         {
-
             for (auto i = m_hashtasks.constBegin(); i != m_hashtasks.constEnd(); ++i)
                 delete (*i);
             m_hashtasks.clear();
@@ -230,11 +231,12 @@ public:
 private:
     QVariantMap m_data;
     QByteArray m_infohash;
-    QString m_realname, m_savetorrentfilename, m_parentdir;
+    QString m_realname, m_parentdir;
     QThread* m_hashthread = 0;
     TorrentFileHasher* m_hasher = 0;
     QMap<QString, qint64> m_filelist;
     QFileSystemWatcher m_watcher;
+    QFile m_outputfile;
 
 
     QVariant decodeBencode(const QByteArray& bencode, DATATYPE keytype = ADDITIONAL, qint64 *parsedLength = 0);
@@ -255,6 +257,7 @@ private slots:
 
 public slots:
     void onThreadFinished(QByteArray pieces);
+    void onHashError(QString msg);
 };
 
 #endif // TORRENTFILE_H

@@ -11,8 +11,10 @@ Rectangle {
     property string announceurls;
     property string webseedurls;
     property string lastsavepath;
+    property string loadeddir;
     property bool announcemultitier;
     property bool busy: false;
+    property var metainfolimit;
 
 
     function fileSizeIEC(a,b,c,d,e){
@@ -20,11 +22,18 @@ Rectangle {
      +' '+(e?'KMGTPEZY'[--e]+'iB':'Bytes');
     }
 
+    function showError(text) {
+        findiag.title = "Error";
+        findiag.text = text;
+        findiag.open();
+    }
+
     function updateUI() {
-        var contentlength = torrent.getContentLength();
         footertext0.text = "Pieces: #: " + torrent.getPieceNumber() + " S: " + fileSizeIEC(torrent.getPieceLength());
-        footertext1.text = "Total size: " + fileSizeIEC(contentlength);
-        footertext2.text = "Metainfo size: " + fileSizeIEC(torrent.calculateTorrentfileSize());
+        footertext1.text = "Total size: " + fileSizeIEC(torrent.getContentLength());
+        var metasize = torrent.calculateTorrentfileSize();
+        metainfotext.text = "Metainfo size: " + fileSizeIEC(metasize);
+        metainfotext.color = metasize > root.metainfolimit ? "red" : "black";
     }
 
     Timer {
@@ -50,7 +59,10 @@ Rectangle {
         title: "Oops";
         text: "Files in the directory you have chosen where added or removed. Do you want to reload the fileslist?";
         standardButtons: StandardButton.Yes | StandardButton.No;
-        onYes: torrent.setDirectory(torrent.getParentDirectory + "/" + torrent.getRealName());
+        onYes: {
+            torrent.setDirectory(root.loadeddir);
+            root.updateUI();
+        }
     }
 
     Connections {
@@ -96,6 +108,7 @@ Rectangle {
             texts.private = "Sets this torrent to be private.\nThis means (as long as the client honors it) no DHT or PeX will be used to spread the torrent.";
             texts.piecelength = "Smaller piece lengths will make it easier to spread the torrent but increase the size of the .torrent file.\nIf you are unsure what to use just leave it to be \"Automatic\".\n16MiB is the highest supported by all torrent clients, higher values might not be supported by some clients.";
             texts.savepath = "Filename for the output metafile.";
+            texts.metainfo = "This will be the size of the resulting Metainfo (.torrent) file.\n\nYou can set a warning size in bytes in the config file.\n Current warning size is: " + fileSizeIEC(metainfolimit) + " (" + metainfolimit + "bytes)";
         }
 
         function show(text) {
@@ -160,6 +173,7 @@ Rectangle {
                 selectFolder: true;
                 onAccepted: {
                     torrent.setDirectory(sets.urlToLocalFile(fileUrl));
+                    root.loadeddir = sets.urlToLocalFile(fileUrl);
                     namefield.text = torrent.getName();
                     piecelengthcombo.currentIndex = -1;
                     piecelengthcombo.currentIndex = 0;
@@ -215,6 +229,13 @@ Rectangle {
         anchors {top: header.bottom; left: parent.left; right: parent.right; bottom: createbutton.top; margins: 15;}
         columns: 2;
         rowSpacing: 15;
+
+        Rectangle {
+            height: 2;
+            color: "grey";
+            Layout.columnSpan: parent.columns;
+            Layout.fillWidth: true;
+        }
 
         Text {text: "Name:"; MouseArea {anchors.fill: parent; cursorShape: Qt.WhatsThisCursor; onClicked: help.show(help.texts.name);}}
         TextField {
@@ -280,16 +301,23 @@ Rectangle {
         }
 
         Text {text: "Piece length:"; MouseArea {anchors.fill: parent; cursorShape: Qt.WhatsThisCursor; onClicked: help.show(help.texts.piecelength);}}
-        ComboBox {
-            id: piecelengthcombo;
-            model: ["Automatic", "16 KiB", "32 KiB", "64 KiB", "128 KiB", "256 KiB", "512 KiB", "1 MiB", "2 MiB", "4 MiB", "8 MiB", "16 MiB", "32 MiB", "64 MiB"];
-            onCurrentIndexChanged: {
-                if (currentIndex === -1) return;
-                if (currentIndex === 0)
-                    torrent.setAutomaticPieceLength();
-                else
-                    torrent.setPieceLength(textAt(currentIndex).substring(textAt(currentIndex).length -3) === "KiB" ? parseInt(textAt(currentIndex)) * 1024 : parseInt(textAt(currentIndex)) * 1024 * 1024);
-                root.updateUI();
+        RowLayout {
+            ComboBox {
+                id: piecelengthcombo;
+                model: ["Automatic", "16 KiB", "32 KiB", "64 KiB", "128 KiB", "256 KiB", "512 KiB", "1 MiB", "2 MiB", "4 MiB", "8 MiB", "16 MiB", "32 MiB", "64 MiB"];
+                onCurrentIndexChanged: {
+                    if (currentIndex === -1) return;
+                    if (currentIndex === 0)
+                        torrent.setAutomaticPieceLength();
+                    else
+                        torrent.setPieceLength(textAt(currentIndex).substring(textAt(currentIndex).length -3) === "KiB" ? parseInt(textAt(currentIndex)) * 1024 : parseInt(textAt(currentIndex)) * 1024 * 1024);
+                    root.updateUI();
+                }
+            }
+            Text {
+                text: ">16MiB is not supported by all clients!";
+                color: "red";
+                visible: (piecelengthcombo.currentIndex > 11);
             }
         }
 
@@ -332,6 +360,7 @@ Rectangle {
         }
     }
 
+
     CheckBox {
         id: savesettingscheck;
         anchors {left: parent.left; right: createbutton.left; verticalCenter: createbutton.verticalCenter; margins: 15;}
@@ -341,28 +370,50 @@ Rectangle {
 
     Button {
         id: createbutton;
-        enabled: !busy;
         anchors {bottom: footer.top; horizontalCenter: parent.horizontalCenter; margins: 10;}
-        text: "  Create";
+        text: busy ? "   Abort" : "  Create";
         height: 35;
         width: parent.width /2;
         iconSource: "qrc:/images/create.png";
         onClicked: {
-            announceurls = sets.removeDupes(announceurls +"\n"+ announce.text);
-            webseedurls = sets.removeDupes(webseedurls +"\n"+ webseed.text);
-            torrent.setCreatedBy("https://github.com/travenn/stc");
-            torrent.setCreationDate(new Date().getTime() / 1000);
-            if (savepathedit.text.substring(savepathedit.text.length -8) === ".torrent" && torrent.create(savepathedit.text))
+            if (!busy)
             {
+                announceurls = sets.removeDupes(announceurls +"\n"+ announce.text);
+                webseedurls = sets.removeDupes(webseedurls +"\n"+ webseed.text);
+                torrent.setCreatedBy(Qt.application.name + " " + Qt.application.version);
+                torrent.setCreationDate(new Date().getTime() / 1000);
+                if (!torrent.getContentLength())
+                {
+                    root.showError("You can't create a torrent without files.");
+                    return;
+                }
+
+                if (savepathedit.text.substring(savepathedit.text.length -8) !== ".torrent")
+                {
+                    root.showError("Please enter a correct path into the save path field.");
+                    return;
+                }
+                if (!sets.dirExists(sets.getFolderPath(savepathedit.text)))
+                {
+                    root.showError("The directory for the output file does not exist!");
+                    return;
+                }
+
+                if (!torrent.create(savepathedit.text))
+                {
+                    root.showError("Could not create outputfile.");
+                    return;
+                }
+
                 etatimer.elapsed = 0;
                 etatimer.start();
                 lastsavepath = sets.toNativeSeparators(sets.getFolderPath(savepathedit.text));
                 busy = true;
             }
-            else {
-                findiag.title = "Error";
-                findiag.text = "Could not create torrent, please make sure all required fields are set!";
-                findiag.open();
+            else
+            {
+                torrent.abortHashing();
+                busy = false;
             }
         }
     }
@@ -393,12 +444,14 @@ Rectangle {
         }
         Rectangle {
             implicitHeight: parent.height;
-            implicitWidth: footertext2.contentWidth + 15;
+            implicitWidth: metainfotext.contentWidth + 15;
             Layout.alignment: Qt.AlignCenter;
             border.width: 1;
             border.color: "grey"
             radius: 3;
-            Text {id: footertext2; anchors {centerIn: parent;}}
+            MouseArea {anchors.fill: parent; cursorShape: Qt.WhatsThisCursor; onClicked: help.show(help.texts.metainfo);}
+            Text {id: metainfotext; anchors {centerIn: parent;}
+            }
         }
 
         ProgressBar {
@@ -419,6 +472,7 @@ Rectangle {
         privatecheck.checked = sets.value("STC/Private", false);
         lastsavepath = sets.value("STC/Lastsavepath", "");
         announcemultitier = sets.value("STC/Announcemultitier", true);
+        metainfolimit = sets.value("STC/MetainfoSizeWarning", 2097151);
     }
 
     Component.onDestruction: {
@@ -428,6 +482,7 @@ Rectangle {
             sets.setValue("STC/Webseeds", webseedurls);
             sets.setValue("STC/Private", privatecheck.checked);
             sets.setValue("STC/Lastsavepath", lastsavepath);
+            sets.setValue("STC/MetainfoSizeWarning", metainfolimit);
         }
     }
 }
