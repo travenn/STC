@@ -34,13 +34,13 @@ class TorrentFileHasher : public QObject
 {
     Q_OBJECT
 public:
-    explicit TorrentFileHasher(const QMap<QString, qint64>& filelist, qint64 piecesize, qint64 contentlength, QObject *parent = 0) : QObject(parent),
+    explicit TorrentFileHasher(const QList<QPair<QString, qint64> >& filelist, qint64 piecesize, qint64 contentlength, QObject *parent = 0) : QObject(parent),
         m_filehash(filelist),
         m_piecesize(piecesize),
         m_contentlength(contentlength) {}
 
 private:
-    QMap<QString, qint64> m_filehash;
+    QList<QPair<QString, qint64> > m_filehash;
     qint64 m_piecesize, m_contentlength;
     bool m_stop = false;
     QMutex m_mutex;
@@ -70,25 +70,24 @@ public slots:
         m_pool.setMaxThreadCount(qMax(2, QThread::idealThreadCount()));
         QFile f;
         QByteArray ba, result;
-        QStringList filelist = m_filehash.keys();
         int i = -1;
         while (!m_stop)
         {
             if (!f.isOpen())
             {
                 ++i;
-                if (i == filelist.size())
+                if (i == m_filehash.size())
                     break;
-                f.setFileName(filelist.at(i));
+                f.setFileName(m_filehash.at(i).first);
                 if (!f.open(QIODevice::ReadOnly | QIODevice::Unbuffered))
                 {
-                    throwerror("Can't open file: " + filelist.at(i));
+                    throwerror("Can't open file: " + m_filehash.at(i).first);
                     return;
                 }
-                if (f.size() != m_filehash.value(filelist.at(i)))
+                if (f.size() != m_filehash.at(i).second)
                 {
                     f.close();
-                    throwerror("File \"" + filelist.at(i) + "\"has been changed, operation aborted!");
+                    throwerror("File \"" + m_filehash.at(i).first + "\"has been changed, operation aborted!");
                     return;
                 }
             }
@@ -234,13 +233,14 @@ private:
     QString m_realname, m_parentdir;
     QThread* m_hashthread = 0;
     TorrentFileHasher* m_hasher = 0;
-    QMap<QString, qint64> m_filelist;
+    QList<QPair<QString, qint64> > m_filelist;
     QFileSystemWatcher m_watcher;
     QFile m_outputfile;
 
 
     QVariant decodeBencode(const QByteArray& bencode, DATATYPE keytype = ADDITIONAL, qint64 *parsedLength = 0);
     void resetFiles();
+    QList<QPair<QString, qint64> > getFilesFromFolder(QString path);
 
 signals:
     //! Emitted on progress updates after create() was invoked.

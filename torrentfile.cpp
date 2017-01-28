@@ -116,7 +116,7 @@ void TorrentFile::setFile(const QString &filename)
     QVariantMap m = m_data.value("info").toMap();
     m.remove("files");
     QFileInfo f(filename);
-    m_filelist.insert(filename, f.size());
+    m_filelist.append(QPair<QString, qint64>(filename, f.size()));
     m.insert("name", f.fileName());
     m_realname = f.fileName();
     m.insert("length", f.size());
@@ -134,20 +134,12 @@ void TorrentFile::setDirectory(const QString &path)
     QVariantMap m = m_data.value("info").toMap();
     m.remove("length");
     QDir dir(path);
-    dir.setFilter(QDir::Files | QDir::NoSymLinks);
     m.insert("name", dir.dirName());
     m_realname = dir.dirName();
+    m_filelist = getFilesFromFolder(path);
     QVariantList files;
-
-    QDirIterator it(dir, QDirIterator::Subdirectories);
-    while (it.hasNext())
-    {
-        it.next();
-        qint64 length = it.fileInfo().size();
-        QString name = it.filePath();
-        m_filelist.insert(name, length);
-        files.append(QVariantMap{{"length", length}, {"path", dir.relativeFilePath(name).split('/')}});
-    }
+    for (auto i = m_filelist.constBegin(); i != m_filelist.constEnd(); ++i)
+        files.append(QVariantMap{{"length", (*i).second}, {"path", dir.relativeFilePath((*i).first).split("/")}});
     m.insert("files", files);
     m_data.insert("info", m);
 
@@ -170,7 +162,7 @@ void TorrentFile::setRootDirectory(const QString &path)
 
     QVariantList files = m_data.value("info").toMap().value("files").toList();
     if (files.isEmpty())
-        m_filelist.insert(m_parentdir + m_data.value("info").toMap().value("name").toString(), m_data.value("info").toMap().value("length", 0).toLongLong());
+        m_filelist.append(QPair<QString, qint64>(m_parentdir + m_data.value("info").toMap().value("name").toString(), m_data.value("info").toMap().value("length", 0).toLongLong()));
     else
     {
         QString root = m_parentdir + m_data.value("info").toMap().value("name").toString() + "/";
@@ -179,7 +171,7 @@ void TorrentFile::setRootDirectory(const QString &path)
             QVariantMap m = (*i).toMap();
             QString path = root + m.value("path").toStringList().join("/");
             qint64 length = m.value("length").toLongLong();
-            m_filelist.insert(path, length);
+            m_filelist.append(QPair<QString, qint64>(path, length));
         }
 
         QStringList watchdirs(root);
@@ -235,7 +227,7 @@ qint64 TorrentFile::getContentLength() const
     }
     else
         for (auto i = m_filelist.constBegin(); i != m_filelist.constEnd(); ++i)
-            ret += i.value();
+            ret += (*i).second;
     return ret;
 }
 
@@ -482,6 +474,53 @@ void TorrentFile::resetFiles()
     m_filelist.clear();
     if (!m_watcher.directories().isEmpty())
         m_watcher.removePaths(m_watcher.directories());
+}
+
+QList<QPair<QString, qint64> > TorrentFile::getFilesFromFolder(QString path)
+{
+    QList<QPair<QString, qint64> > res;
+    QDir dir(path);
+    QFileInfoList fil = dir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot | QDir::NoSymLinks, QDir::Name);
+    for (auto i = fil.constBegin(); i != fil.constEnd(); ++i)
+    {
+        QList<QPair<QString, qint64> > r = getFilesFromFolder((*i).absoluteFilePath());
+        res.append(r);
+    }
+
+    fil = dir.entryInfoList(QDir::Files | QDir::NoDotAndDotDot | QDir::NoSymLinks, QDir::Name);
+    for (auto i = fil.constBegin(); i != fil.constEnd(); ++i)
+    {
+        res.append(QPair<QString, qint64>((*i).absoluteFilePath(), (*i).size()));
+    }
+    return res;
+
+    /*
+    QDir dir(path);
+    dir.setFilter(QDir::Files);
+    QFileInfoList list = dir.entryInfoList();
+    QFileInfo fileinf;
+    for (int z = 0; z < list.size(); z++)
+    {
+        fileinf = list.at(z);
+        filelist.append(fileinf.absoluteFilePath());
+    }
+    QDirIterator it(folder,QDir::Dirs, QDirIterator::Subdirectories);
+    while (it.hasNext())
+    {
+        it.next();
+        if (it.fileName() != "." && it.fileName() != "..")
+        {
+            QDir dir(it.filePath());
+            dir.setFilter(QDir::Files | QDir::NoSymLinks);
+            QFileInfoList list = dir.entryInfoList();
+            QFileInfo fileinf;
+            for (int o = 0; o < list.size(); o++)
+            {
+                fileinf = list.at(o);
+                filelist.append(fileinf.absoluteFilePath());
+            }
+        }
+    }*/
 }
 
 void TorrentFile::onWatchedDirChanged(const QString &dir)
