@@ -15,7 +15,7 @@
 #include "qmlsettings.h"
 
 #define APPNAME "Simple Torrent Creator"
-#define VERSION "0.0.8"
+#define VERSION "0.0.9"
 
 QTextStream out(stdout);
 void quit(const int exitcode = 0)
@@ -82,7 +82,8 @@ int main(int argc, char *argv[])
                          {{"i", "inspect"}, "Prints information about the torrentfile. If -v is set outputs JSON representation.", "torrentfile"},
                          {{"n", "name"}, "Sets an alternate name.", "name"},
                          {{"o", "overwrite"}, "Overwrite existing metainfo file without asking. Implicitly set on windows."},
-                         {{"p", "private"}, "Sets the torrent private."},
+                         {{"p", "private"}, "Sets the torrents private flag."},
+                         {{"r", "randomhash"}, "Creates the torrent with a random piece hash (useful for some file based duplicate checkers)."},
                          {{"s", "l", "size", "length"}, "Piece length in bytes. You can append a 'k' for KiB or 'm' for MiB e.g.: '-l512k' for 524288 bytes.", "size"},
                          {{"t", "simulate"}, "Doesn't hash or create a metafile. Can be used to calculate the piece length, number of pieces and the metainfo size before creating."},
                          {{"v", "verbose"}, "Prints additional information dependent on the other options used."},
@@ -282,6 +283,32 @@ int main(int argc, char *argv[])
         }
 #endif
 
+        if (p.isSet("randomhash"))
+        {
+            out << endl << "Creating torrent with random hash." << endl;
+            out << "Warning: This torrent can't be used to transfer any data." << endl;
+            out << "Only use it for file based duplicate checkers." << endl;
+            QVariantMap map = t.toVariant().toMap();
+            QVariantMap m = map.value("info").toMap();
+            QByteArray randompieces;
+            randompieces.resize(t.getPieceNumber() * 20);
+            for(int i = 0; i < randompieces.length(); ++i)
+                randompieces[i] = rand();
+            m.insert("pieces", randompieces);
+            map.insert("info", m);
+
+            QFile f(target);
+            if (f.open(QIODevice::WriteOnly))
+            {
+                f.write(t.encode(map, 1));
+                f.close();
+                out << endl << "Finished: Info hash: " << t.getInfoHash(true) << endl;
+                quit();
+            }
+            out << endl << "Error: Could not write to " + target << endl;
+            quit(1);
+        }
+
 
         qint64 starttime = QDateTime::currentMSecsSinceEpoch();
         QObject::connect(&t, &TorrentFile::progress, [&] (int p)
@@ -329,6 +356,7 @@ int main(int argc, char *argv[])
         t.setCreatedBy(QString("%1 %2").arg(APPNAME, VERSION));
         QmlSettings s;
         QQuickWidget w;
+        w.setWindowTitle(QString("%1 %2").arg(APPNAME, VERSION));
         w.setWindowIcon(QIcon(":/images/file.ico"));
         w.engine()->rootContext()->setContextProperty("torrent", &t);
         w.engine()->rootContext()->setContextProperty("sets", &s);
