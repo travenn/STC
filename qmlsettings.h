@@ -11,6 +11,7 @@
 class QmlSettings : public QSettings
 {
     Q_OBJECT
+//    Q_PROPERTY(QString Name READ Name WRITE setName NOTIFY NameChanged)
 public:
     QmlSettings(QObject* parent = 0) : QSettings(QApplication::applicationDirPath() + "/STC.ini", QSettings::IniFormat, parent) {}
 

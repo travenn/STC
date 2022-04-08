@@ -20,7 +20,7 @@
 QTextStream out(stdout);
 void quit(const int exitcode = 0)
 {
-    out << endl;
+    out << Qt::endl;
 #ifdef Q_OS_WIN
     out << QDir::toNativeSeparators(QDir::currentPath()) + ">" << flush;
 #endif
@@ -70,7 +70,6 @@ int main(int argc, char *argv[])
         QCommandLineParser p;
         p.addHelpOption();
         p.setApplicationDescription("[S]imple [T]orrent [C]reator");
-        p.addPositionalArgument("announce", "The announce url. You can add more urls using -a option.");
         p.addPositionalArgument("source", "The path to a file or directory you want to create a torrent from.");
         p.addPositionalArgument("target", "The path where to save the metainfo (.torrent) file.");
         p.addOptions({
@@ -104,22 +103,22 @@ int main(int argc, char *argv[])
                 TorrentFile tf((*i));
                 hashes << tf.getInfoHash();
                 if (verbose)
-                    out << (*i) << ": " << tf.getInfoHash(true) << endl;
+                    out << (*i) << ": " << tf.getInfoHash(true) << Qt::endl;
             }
             if (hashes.size() != 1)
             {
-                if (verbose) out << "Hashes don't match." << endl;
+                if (verbose) out << "Hashes don't match." << Qt::endl;
                 else out << "0";
                 quit();
             }
             else
             {
-                if (verbose) out << "Hashes are the same." << endl;
+                if (verbose) out << "Hashes are the same." << Qt::endl;
                 else out << "1";
                 quit(!verbose);
             }
         }
-        out << endl;
+        out << Qt::endl;
 
 
         if (p.isSet("dupe"))
@@ -134,7 +133,7 @@ int main(int argc, char *argv[])
 
             if (!t.load(source, TorrentFile::ADDITIONAL))
             {
-                out << "Can't find " << source << endl;
+                out << "Can't find " << source << Qt::endl;
                 quit(1);
             }
             QByteArray ohash = t.getInfoHash();
@@ -144,9 +143,9 @@ int main(int argc, char *argv[])
                 QVariantMap info = m.value("info").toMap();
                 info.insert("pieces", "<stripped>");
                 m.insert("info", info);
-                out << QJsonDocument::fromVariant(m).toJson() << endl;
+                out << QJsonDocument::fromVariant(m).toJson() << Qt::endl;
             }
-            out << "Original hash: " << ohash.toHex() << endl;
+            out << "Original hash: " << ohash.toHex() << Qt::endl;
 
             t.setAnnounceUrls(QStringList() << announce << p.values("announce"));
             if (p.isSet("webseed"))
@@ -161,13 +160,13 @@ int main(int argc, char *argv[])
                 t.dupe();
                 bcode = t.encode(t.toVariant().toMap(), true);
             }
-            out << "Duplicate hash: " << t.getInfoHash(true) << endl;
+            out << "Duplicate hash: " << t.getInfoHash(true) << Qt::endl;
 
 #ifndef Q_OS_WIN
             if (QFile::exists(target) && !p.isSet("overwrite"))
             {
                 QTextStream in(stdin);
-                out << target << " already exists, overwrite? [Y]es / [N]o" << endl;
+                out << target << " already exists, overwrite? [Y]es / [N]o" << Qt::endl;
                 QString c;
                 in >> c;
                 if (QString::compare(c, "y", Qt::CaseInsensitive))
@@ -177,7 +176,7 @@ int main(int argc, char *argv[])
             QFile f(target);
             if (!f.open(QIODevice::ReadWrite | QIODevice::Truncate) || f.write(bcode) == -1)
             {
-                out << "Can't write file: " << target << endl;
+                out << "Can't write file: " << target << Qt::endl;
                 quit(1);
             }
             f.close();
@@ -195,37 +194,36 @@ int main(int argc, char *argv[])
                 QVariantMap info = m.value("info").toMap();
                 info.insert("pieces", "<stripped>");
                 m.insert("info", info);
-                out << QJsonDocument::fromVariant(m).toJson() << endl;
+                out << QJsonDocument::fromVariant(m).toJson() << Qt::endl;
             }
             else
             {
-                out << "Name: " << t.getName() << endl;
-                out << "Announce urls: " << t.getAnnounceUrls().join(", ") << endl;
+                out << "Name: " << t.getName() << Qt::endl;
+                out << "Announce urls: " << t.getAnnounceUrls().join(", ") << Qt::endl;
                 if (!t.getWebseedUrls().isEmpty())
-                    out << "Webseed urls: " << t.getWebseedUrls().join(", ") << endl;
+                    out << "Webseed urls: " << t.getWebseedUrls().join(", ") << Qt::endl;
                 if (!t.getCreatedBy().isEmpty())
-                    out << "Created by: " << t.getCreatedBy() << endl;
+                    out << "Created by: " << t.getCreatedBy() << Qt::endl;
                 if (t.getCreationDate())
-                    out << "Creation date: " << QDateTime::fromTime_t(t.getCreationDate(), Qt::UTC).toString(Qt::ISODate) << endl;
+                    out << "Creation date: " << QDateTime::fromTime_t(t.getCreationDate(), Qt::UTC).toString(Qt::ISODate) << Qt::endl;
                 if (!t.getComment().isEmpty())
-                    out << "Comment: " << t.getComment() << endl;
+                    out << "Comment: " << t.getComment() << Qt::endl;
                 if (t.isPrivate())
-                    out << "Private: true" << endl;
-                out << "Total size: " << prettySize(t.getContentLength()) << endl;
-                out << "Piece length: " << prettySize(t.getPieceLength()) << endl;
-                out << "Number of pieces: " << t.getPieceNumber() << endl;
-                out << "Metainfo size: " << prettySize(t.calculateTorrentfileSize()) << endl;
-                out << "Info hash: " << t.getInfoHash(true) << endl;
+                    out << "Private: true" << Qt::endl;
+                out << "Total size: " << prettySize(t.getContentLength()) << Qt::endl;
+                out << "Piece length: " << prettySize(t.getPieceLength()) << Qt::endl;
+                out << "Number of pieces: " << t.getPieceNumber() << Qt::endl;
+                out << "Metainfo size: " << prettySize(t.calculateTorrentfileSize()) << Qt::endl;
+                out << "Info hash: " << t.getInfoHash(true) << Qt::endl;
             }
             quit();
         }
 
         QStringList positionals = p.positionalArguments();
-        if (positionals.size() != 3)
+        if (positionals.size() != 2)
             p.showHelp(1);
-        QString announce = positionals.at(0);
-        QString source = positionals.at(1);
-        QString target = positionals.at(2);
+        QString source = positionals.at(0);
+        QString target = positionals.at(1);
 
 
         if (QFileInfo(source).isDir())
@@ -233,7 +231,7 @@ int main(int argc, char *argv[])
         else
             t.setFile(source);
 
-        t.setAnnounceUrls(QStringList() << announce << p.values("announce"));
+        t.setAnnounceUrls(QStringList() << p.values("announce"));
         t.setComment(p.value("comment"));
         QStringList additional = p.values("data");
         for (auto i = additional.constBegin(); i != additional.constEnd(); ++i)
@@ -260,12 +258,12 @@ int main(int argc, char *argv[])
         t.setWebseedUrls(p.values("webseed"));
 
         if (verbose)
-            out << QJsonDocument::fromVariant(t.toVariant()).toJson() << endl;
+            out << QJsonDocument::fromVariant(t.toVariant()).toJson() << Qt::endl;
 
-        out << "Total size: " << prettySize(t.getContentLength()) << endl;
-        out << "Piece length: " << prettySize(t.getPieceLength()) << endl;
-        out << "Number of pieces: " << t.getPieceNumber() << endl;
-        out << "Metainfo size: " << prettySize(t.calculateTorrentfileSize()) << endl;
+        out << "Total size: " << prettySize(t.getContentLength()) << Qt::endl;
+        out << "Piece length: " << prettySize(t.getPieceLength()) << Qt::endl;
+        out << "Number of pieces: " << t.getPieceNumber() << Qt::endl;
+        out << "Metainfo size: " << prettySize(t.calculateTorrentfileSize()) << Qt::endl;
 
         if (p.isSet("simulate"))
             quit();
@@ -275,7 +273,7 @@ int main(int argc, char *argv[])
         if (QFile::exists(target) && !p.isSet("overwrite"))
         {
             QTextStream in(stdin);
-            out << target << " already exists, overwrite? [Y]es / [N]o" << endl;
+            out << target << " already exists, overwrite? [Y]es / [N]o" << Qt::endl;
             QString c;
             in >> c;
             if (QString::compare(c, "y", Qt::CaseInsensitive))
@@ -285,9 +283,9 @@ int main(int argc, char *argv[])
 
         if (p.isSet("randomhash"))
         {
-            out << endl << "Creating torrent with random hash." << endl;
-            out << "Warning: This torrent can't be used to transfer any data." << endl;
-            out << "Only use it for file based duplicate checkers." << endl;
+            out << Qt::endl << "Creating torrent with random hash." << Qt::endl;
+            out << "Warning: This torrent can't be used to transfer any data." << Qt::endl;
+            out << "Only use it for file based duplicate checkers." << Qt::endl;
             QVariantMap map = t.toVariant().toMap();
             QVariantMap m = map.value("info").toMap();
             QByteArray randompieces;
@@ -302,10 +300,10 @@ int main(int argc, char *argv[])
             {
                 f.write(t.encode(map, 1));
                 f.close();
-                out << endl << "Finished: Info hash: " << t.getInfoHash(true) << endl;
+                out << Qt::endl << "Finished: Info hash: " << t.getInfoHash(true) << Qt::endl;
                 quit();
             }
-            out << endl << "Error: Could not write to " + target << endl;
+            out << Qt::endl << "Error: Could not write to " + target << Qt::endl;
             quit(1);
         }
 
@@ -319,30 +317,30 @@ int main(int argc, char *argv[])
             eta = eta % 3600;
             int m = eta / 60;
             int s = eta % 60;
-            out << QString("\r%1%  ETA: %2:%3:%4").arg(p).arg(h,2,10,QChar('0')).arg(m,2,10,QChar('0')).arg(s,2,10,QChar('0')) << flush;
+            out << QString("\r%1%  ETA: %2:%3:%4").arg(p).arg(h,2,10,QChar('0')).arg(m,2,10,QChar('0')).arg(s,2,10,QChar('0')) << Qt::flush;
         });
         QObject::connect(&t, &TorrentFile::finished, [&] (bool s)
         {
-            out << endl;
+            out << Qt::endl;
             if (!s)
-                out << endl << "Something went wrong, operation failed!" << endl;
+                out << Qt::endl << "Something went wrong, operation failed!" << Qt::endl;
             else
-                out << endl << "Finished: Info hash: " << t.getInfoHash(true) << endl;
+                out << Qt::endl << "Finished: Info hash: " << t.getInfoHash(true) << Qt::endl;
             app.quit();
         });
         QObject::connect(&t, &TorrentFile::error, [&] (QString msg)
         {
-            out << endl << msg;
+            out << Qt::endl << msg;
             app.quit();
         });
 
         if (!t.create(target))
         {
-            out << endl << "Files not found." << endl;
+            out << Qt::endl << "Files not found." << Qt::endl;
             quit();
         }
         else
-            out << "0% ETA: -" << flush;
+            out << "0% ETA: -" << Qt::flush;
         quit(app.exec());
     }
 

@@ -157,7 +157,7 @@ public:
     static QHash<QString, DATATYPE> standardkeys;
 
     //! Opens and parses keys specified by keytype of the given file.
-    Q_INVOKABLE bool load(const QString& filename, DATATYPE keytype = ADDITIONAL);
+    Q_INVOKABLE bool load(const QString& filename, TorrentFile::DATATYPE keytype = ADDITIONAL);
 
     //! Creates a torrentfile from the data. The hashing is done in a seperate thread. @sa TorrentFileHashCreator, progress(), finished() @return false if there is data missing, otherwise true.
     Q_INVOKABLE bool create(const QString& filename);

@@ -359,15 +359,25 @@ QVariant TorrentFile::decodeBencode(const QByteArray& bencode, DATATYPE keytype,
             int length = ls.toInt();
             QByteArray s = bencode.mid(pos + ls.length() +1, length);
             if (islist)
-                clist.append(s);
+                clist.append(QString(s));
             else
             {
                 if (key.isEmpty())
-                    key = s;
+                    key = QString(s);
                 else
                 {
                     if (standardkeys.value(key, ADDITIONAL) <= keytype)
-                        cmap.insert(key, s);
+                    {
+                        // assume string, unless we know it's bytes
+                        if (key == "pieces" || key == "pieces root")
+                        {
+                            cmap.insert(key, s);
+                        }
+                        else
+                        {
+                            cmap.insert(key, QString(s));
+                        }
+                    }
                     key = "";
                 }
             }
