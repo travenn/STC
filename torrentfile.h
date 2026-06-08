@@ -219,8 +219,10 @@ public:
     //! Must be a power of 2. When 0(default) it will be automatically calculated when creating a torrent.
     Q_INVOKABLE void setPieceLength(const qint64& bytes);
     Q_INVOKABLE void setPrivate(const bool& is_private);
-    //! Adds additional data to the torrent file.
+    //! Adds additional extra data to the torrent file outside the info directory.
     Q_INVOKABLE void addAdditionalData(const QString& key, const QVariant& value) {if (!standardkeys.contains(key)) m_data.insert(key, value);}
+    //! Adds additional data to the torrent file inside the info directory.
+    Q_INVOKABLE void addInfoData(const QString& key, const QVariant& value) {if (!standardkeys.contains(key)) { QVariantMap m = m_data.value("info").toMap(); m.insert(key, value); m_data.insert("info", m); }}
     //! Sets the piece length to the smallest size that doesn't exceed maxpiecenumber or maxpiecesize. @returns piece length.
     Q_INVOKABLE qint64 setAutomaticPieceLength();
     //! Adds current secs since epoch to the info section to alter info hash.

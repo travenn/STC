@@ -438,7 +438,7 @@ QVariant TorrentFile::decodeBencode(const QByteArray& bencode, DATATYPE keytype,
 
 QByteArray TorrentFile::encode(const QVariant &data, const bool createinfohash)
 {
-    switch (data.type())
+    switch (data.typeId())
     {
         default:
         case QMetaType::QString:
@@ -503,34 +503,6 @@ QList<QPair<QString, qint64> > TorrentFile::getFilesFromFolder(QString path)
         res.append(QPair<QString, qint64>((*i).absoluteFilePath(), (*i).size()));
     }
     return res;
-
-    /*
-    QDir dir(path);
-    dir.setFilter(QDir::Files);
-    QFileInfoList list = dir.entryInfoList();
-    QFileInfo fileinf;
-    for (int z = 0; z < list.size(); z++)
-    {
-        fileinf = list.at(z);
-        filelist.append(fileinf.absoluteFilePath());
-    }
-    QDirIterator it(folder,QDir::Dirs, QDirIterator::Subdirectories);
-    while (it.hasNext())
-    {
-        it.next();
-        if (it.fileName() != "." && it.fileName() != "..")
-        {
-            QDir dir(it.filePath());
-            dir.setFilter(QDir::Files | QDir::NoSymLinks);
-            QFileInfoList list = dir.entryInfoList();
-            QFileInfo fileinf;
-            for (int o = 0; o < list.size(); o++)
-            {
-                fileinf = list.at(o);
-                filelist.append(fileinf.absoluteFilePath());
-            }
-        }
-    }*/
 }
 
 void TorrentFile::onWatchedDirChanged(const QString &dir)
